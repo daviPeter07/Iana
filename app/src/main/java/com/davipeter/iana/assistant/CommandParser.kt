@@ -16,7 +16,8 @@ class RuleBasedBrain : Brain {
 
 object CommandParser {
 
-    private val WAKE_WORD = Regex("""^\s*(?:(?:ok|ei|hey|ola)\s+)?(?:jarvis|iana|yana)\b""")
+    /** "IANA" no começo da frase. O reconhecimento às vezes escreve "Yana", "Hiana" ou "Ianna". */
+    private val WAKE_WORD = Regex("""^\s*(?:(?:ok|ei|hey|ola|oi)\s+)?(?:iana|yana|hiana|ianna|iannah)\b""")
 
     private val CREATE = Regex(
         """^\s*(?:por\s+favor\s+)?(?:me\s+)?""" +

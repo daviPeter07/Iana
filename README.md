@@ -25,6 +25,10 @@ Você fala, ela entende, executa e responde em voz alta.
 
 > 💡 Também dá pra digitar o comando na caixa de texto, o que é útil no emulador.
 
+**Mãos livres:** ligue *Ouvir “IANA”* no topo do app. Depois é só dizer **“IANA”**: ela apita, ouve o pedido e responde falando, mesmo com o app fechado e a tela bloqueada.
+
+**Widget:** segure na tela inicial › *Widgets* › **IANA**. Ele mostra o próximo compromisso e 3 manchetes, se atualiza a cada 30 minutos e tem um botão de microfone pra falar com ela.
+
 ## 🚀 Rodando no celular
 
 1. Abra o projeto no [Android Studio](https://developer.android.com/studio).
@@ -32,6 +36,25 @@ Você fala, ela entende, executa e responde em voz alta.
 3. Conecte o cabo USB, escolha o aparelho e clique em **Run ▶**.
 
 **Requisitos:** Android 10+ com o app Google instalado (ele fornece o reconhecimento de voz).
+
+<details>
+<summary><b>🗣️ Configurando a palavra “IANA” (uma vez só)</b></summary>
+
+A detecção usa o [Porcupine](https://picovoice.ai/platform/porcupine/), que roda no próprio celular e é grátis para uso pessoal. Você precisa de uma chave e de um arquivo com a palavra treinada:
+
+1. Crie uma conta no [Picovoice Console](https://console.picovoice.ai/) e copie sua **AccessKey**.
+2. Na raiz do projeto, abra (ou crie) o arquivo `local.properties` e adicione:
+   ```properties
+   picovoice.accessKey=SUA_ACCESS_KEY
+   ```
+   Esse arquivo não vai pro git, então a chave fica só no seu computador.
+3. No Console, vá em **Porcupine**, escolha o idioma **Portuguese**, digite **IANA**, treine e baixe para **Android**.
+4. Descompacte, renomeie o `.ppn` para **`iana_pt_android.ppn`** e coloque em `app/src/main/assets/`. O modelo de português (`porcupine_params_pt.pv`) já está lá.
+5. Rode o app de novo e ligue *Ouvir “IANA”*.
+
+Se a IANA disparar à toa ou não ouvir, ajuste `SENSITIVITY` em `WakeWordService.kt`: mais alto ouve mais fácil, mais baixo erra menos.
+
+</details>
 
 <details>
 <summary><b>🎙️ Deixando a voz melhor e funcionando offline</b></summary>
@@ -45,7 +68,8 @@ Você fala, ela entende, executa e responde em voz alta.
 
 ```mermaid
 flowchart LR
-    A[🎤 Microfone] --> B[SpeechListener]
+    W[🗣️ “IANA”] --> B
+    A[🎤 Botão / widget] --> B[SpeechListener]
     B --> C[Brain<br/><i>entende o comando</i>]
     C --> D[Assistant<br/><i>executa</i>]
     D --> E[(Notícias · Agenda)]
@@ -64,6 +88,8 @@ app/src/main/java/com/davipeter/iana/
 │   ├── news/      Google Notícias via RSS (sem chave de API)
 │   └── calendar/  agenda do celular (CalendarContract)
 ├── voice/       ouvir (SpeechListener) e falar (Speaker)
+├── wakeword/    escuta da palavra “IANA” em segundo plano
+├── widget/      widget da tela inicial (Jetpack Glance + WorkManager)
 ├── ui/          tela em Jetpack Compose
 └── IanaApp.kt   monta as dependências
 ```
@@ -72,7 +98,7 @@ A interpretação fica atrás da interface `Brain`. Hoje ela usa regras (`RuleBa
 
 ## 🧪 Testes
 
-O parser, o roteador e o leitor de RSS têm testes de unidade que rodam na JVM, sem emulador:
+O parser, o roteador, o leitor de RSS e os dados do widget têm testes de unidade que rodam na JVM, sem emulador:
 
 ```bash
 ./gradlew test
@@ -82,6 +108,6 @@ O parser, o roteador e o leitor de RSS têm testes de unidade que rodam na JVM, 
 
 - [x] Comando de voz com resposta falada
 - [x] Notícias e agenda
-- [ ] Widget com manchetes, próximo compromisso e botão de falar
-- [ ] Palavra de ativação “Jarvis” em segundo plano
+- [x] Widget com manchetes, próximo compromisso e botão de falar
+- [x] Palavra de ativação “IANA” em segundo plano
 - [ ] Resumo falado da manhã (notícias, agenda e DMs pendentes)

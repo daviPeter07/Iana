@@ -13,7 +13,7 @@ class CommandParserTest {
     private fun date(m: Int, d: Int, y: Int = 2026) = LocalDate.of(y, m, d)
 
     @Test fun `noticias sem assunto`() {
-        assertEquals(Command.News(null), parse("Jarvis, quais as notícias de hoje?"))
+        assertEquals(Command.News(null), parse("IANA, quais as notícias de hoje?"))
         assertEquals(Command.News(null), parse("me dá as últimas notícias"))
         assertEquals(Command.News(null), parse("manchetes"))
     }
@@ -48,7 +48,7 @@ class CommandParserTest {
         )
         assertEquals(
             Command.CreateEvent("Dentista", date(11, 6), LocalTime.of(10, 30), 60),
-            parse("Jarvis, agenda dentista na sexta às 10:30"),
+            parse("Iana, agenda dentista na sexta às 10:30"),
         )
         assertEquals(
             Command.CreateEvent("Ligar pro contador", date(11, 15), LocalTime.of(15, 0), 60),
@@ -81,7 +81,7 @@ class CommandParserTest {
         assertEquals(Command.TellTime, parse("que horas são?"))
         assertEquals(Command.TellDate, parse("que dia é hoje?"))
         assertEquals(Command.Help, parse("o que você sabe fazer?"))
-        assertEquals(Command.Greeting, parse("bom dia Jarvis"))
+        assertEquals(Command.Greeting, parse("bom dia IANA"))
         assertEquals(Command.Unknown("toca uma música"), parse("toca uma música"))
     }
 }

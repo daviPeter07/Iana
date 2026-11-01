@@ -9,6 +9,8 @@ import com.davipeter.iana.assistant.Reply
 import com.davipeter.iana.voice.SpeechException
 import com.davipeter.iana.voice.SpeechListener
 import com.davipeter.iana.voice.Speaker
+import com.davipeter.iana.wakeword.WakeWordService
+import com.davipeter.iana.widget.WidgetUpdateWorker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +29,8 @@ data class UiState(
     val error: String? = null,
     /** Comando que ficou esperando o usuário conceder uma permissão. */
     val waitingPermission: Pair<Permission, String>? = null,
+    /** O app foi aberto pelo botão de microfone do widget: começar a ouvir assim que der. */
+    val autoListen: Boolean = false,
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -52,19 +56,34 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         job = viewModelScope.launch {
-            _state.update { it.copy(phase = Phase.Listening, partial = "", error = null) }
-            val heard = try {
-                listener.listen { partial -> _state.update { it.copy(partial = partial) } }
-            } catch (e: SpeechException) {
-                _state.update { it.copy(phase = Phase.Idle, partial = "", error = e.friendlyMessage) }
-                return@launch
+            // Se a escuta da palavra "IANA" estiver ligada, ela solta o microfone enquanto o app usa.
+            WakeWordService.pauseForApp()
+            try {
+                _state.update { it.copy(phase = Phase.Listening, partial = "", error = null) }
+                val heard = try {
+                    listener.listen { partial -> _state.update { it.copy(partial = partial) } }
+                } catch (e: SpeechException) {
+                    _state.update { it.copy(phase = Phase.Idle, partial = "", error = e.friendlyMessage) }
+                    return@launch
+                }
+                if (heard.isBlank()) {
+                    _state.update { it.copy(phase = Phase.Idle, partial = "") }
+                    return@launch
+                }
+                respond(heard)
+            } finally {
+                WakeWordService.resumeAfterApp()
             }
-            if (heard.isBlank()) {
-                _state.update { it.copy(phase = Phase.Idle, partial = "") }
-                return@launch
-            }
-            respond(heard)
         }
+    }
+
+    /** O widget pediu para ouvir. A tela confere a permissão de microfone e chama [onMicTapped]. */
+    fun requestAutoListen() {
+        _state.update { it.copy(autoListen = true) }
+    }
+
+    fun consumeAutoListen() {
+        _state.update { it.copy(autoListen = false) }
     }
 
     /** Comando digitado (útil no emulador e em lugares onde não dá pra falar). */
@@ -90,6 +109,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun respond(text: String) {
         _state.update { it.copy(phase = Phase.Thinking, partial = text, error = null) }
         val reply = assistant.handle(text)
+        if (reply.changedCalendar) WidgetUpdateWorker.refreshNow(getApplication())
         _state.update {
             it.copy(
                 phase = Phase.Speaking,

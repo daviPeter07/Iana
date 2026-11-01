@@ -16,11 +16,13 @@ enum class Permission { CALENDAR }
  * @param speech o que ela fala em voz alta.
  * @param details linhas extras mostradas na tela (manchetes com a fonte, eventos...).
  * @param needs permissão que faltou; a tela pede e repete o comando.
+ * @param changedCalendar o comando criou um evento (o widget precisa ser atualizado).
  */
 data class Reply(
     val speech: String,
     val details: List<String> = emptyList(),
     val needs: Permission? = null,
+    val changedCalendar: Boolean = false,
 )
 
 /**
@@ -139,6 +141,7 @@ class Assistant(
         return Reply(
             "Pronto. Marquei ${command.title} $whenText.",
             details = listOf("Agenda: ${created.calendarName}"),
+            changedCalendar = true,
         )
     }
 

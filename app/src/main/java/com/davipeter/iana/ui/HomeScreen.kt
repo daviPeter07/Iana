@@ -2,6 +2,7 @@ package com.davipeter.iana.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.RepeatMode
@@ -36,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -55,6 +57,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.davipeter.iana.R
 import com.davipeter.iana.assistant.Permission
+import com.davipeter.iana.wakeword.WakeWordService
 
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
@@ -81,15 +84,66 @@ fun HomeScreen(viewModel: MainViewModel) {
         if (granted) viewModel.onMicTapped() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
     }
 
+    // Aberto pelo botão de microfone do widget.
+    LaunchedEffect(state.autoListen) {
+        if (state.autoListen) {
+            viewModel.consumeAutoListen()
+            onMic()
+        }
+    }
+
+    // Escuta da palavra "IANA" em segundo plano.
+    val wakeRunning by WakeWordService.running.collectAsStateWithLifecycle()
+    val wakeError by WakeWordService.error.collectAsStateWithLifecycle()
+    var setupProblem by rememberSaveable { mutableStateOf<String?>(null) }
+    val wakePermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
+        // Só o microfone é obrigatório; sem notificação o serviço roda, mas o aviso fica escondido.
+        if (result[Manifest.permission.RECORD_AUDIO] == true) WakeWordService.start(context)
+    }
+    val onWakeToggle: (Boolean) -> Unit = { enable ->
+        if (!enable) {
+            WakeWordService.stop(context)
+        } else {
+            setupProblem = WakeWordService.missingSetup(context)
+            if (setupProblem == null) {
+                val needed = buildList {
+                    add(Manifest.permission.RECORD_AUDIO)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                wakePermissions.launch(needed.toTypedArray())
+            }
+        }
+    }
+
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(Modifier.safeDrawingPadding().imePadding()) {
-            Text(
-                "IANA",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "IANA",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "Ouvir “IANA”",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                Switch(checked = wakeRunning, onCheckedChange = onWakeToggle)
+            }
+            (setupProblem ?: wakeError)?.let {
+                Text(
+                    it,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+            }
             History(state.history, Modifier.weight(1f))
             StatusLine(state)
             MicButton(state.phase, onMic, Modifier.align(Alignment.CenterHorizontally))

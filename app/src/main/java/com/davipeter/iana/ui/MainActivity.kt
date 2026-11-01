@@ -1,5 +1,6 @@
 package com.davipeter.iana.ui
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -13,6 +14,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        if (savedInstanceState == null) handleIntent(intent)
         setContent {
             IanaTheme {
                 HomeScreen(viewModel)
@@ -20,9 +22,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == ACTION_LISTEN) {
+            viewModel.requestAutoListen()
+            intent.action = null // não repetir ao girar a tela
+        }
+    }
+
     override fun onStop() {
         super.onStop()
-        // Saiu do app: para de ouvir e de falar (ouvir em segundo plano é o ponto 4 do roadmap).
+        // Saiu do app: para a conversa da tela. (A escuta da palavra "IANA" é um serviço à parte e continua.)
         viewModel.stop()
+    }
+
+    companion object {
+        /** Usado pelo botão de microfone do widget. */
+        const val ACTION_LISTEN = "com.davipeter.iana.LISTEN"
     }
 }

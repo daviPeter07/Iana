@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Segredos locais (fora do git): coloque em local.properties a linha
+// picovoice.accessKey=SUA_CHAVE
+val localProperties = java.util.Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+
 android {
     namespace = "com.davipeter.iana"
     compileSdk = 36
@@ -13,7 +19,9 @@ android {
         minSdk = 29 // Android 10
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "0.2.0"
+
+        buildConfigField("String", "PICOVOICE_ACCESS_KEY", "\"${localProperties.getProperty("picovoice.accessKey", "")}\"")
     }
 
     buildTypes {
@@ -32,6 +40,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -44,6 +53,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.glance.appwidget)
+    implementation(libs.androidx.work.runtime)
+    implementation(libs.porcupine)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

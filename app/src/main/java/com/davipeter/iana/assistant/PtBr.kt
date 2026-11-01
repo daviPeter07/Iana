@@ -44,6 +44,13 @@ object PtBr {
         }
     }
 
+    /** Versão curta para o widget: "Hoje", "Amanhã", "Sex 7/11". */
+    fun shortDay(date: LocalDate, today: LocalDate): String = when (date) {
+        today -> "Hoje"
+        today.plusDays(1) -> "Amanhã"
+        else -> weekday(date).take(3).replaceFirstChar { it.uppercase() } + " ${date.dayOfMonth}/${date.monthValue}"
+    }
+
     /** "1 compromisso", "3 compromissos". */
     fun plural(n: Int, singular: String, plural: String): String = "$n ${if (n == 1) singular else plural}"
 }
