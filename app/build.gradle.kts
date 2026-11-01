@@ -4,6 +4,24 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// sherpa-onnx: o motor da voz da IANA, embutido no app. Ele não está no Maven Central,
+// então o AAR oficial é baixado das releases do GitHub na primeira vez que o projeto sincroniza.
+// (A 1.13.8 é a versão testada com a voz "dii"; a 2.x mudou o tratamento desse modelo.)
+val sherpaVersion = "1.13.8"
+val sherpaSha256 = "633c24321e06b1fe79feafa03ea16cbc0f8a286641e2da3559bac91bdb13bd96"
+val sherpaAar = file("libs/sherpa-onnx-$sherpaVersion.aar")
+if (!sherpaAar.exists()) {
+    sherpaAar.parentFile.mkdirs()
+    val url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v$sherpaVersion/sherpa-onnx-$sherpaVersion.aar"
+    logger.lifecycle("Baixando $url")
+    val tmp = File(sherpaAar.path + ".part")
+    uri(url).toURL().openStream().use { input -> tmp.outputStream().use { input.copyTo(it) } }
+    val digest = java.security.MessageDigest.getInstance("SHA-256").digest(tmp.readBytes())
+    val actual = digest.joinToString("") { "%02x".format(it) }
+    check(actual == sherpaSha256) { "Checksum do sherpa-onnx não confere: $actual" }
+    tmp.renameTo(sherpaAar)
+}
+
 android {
     namespace = "com.davipeter.iana"
     compileSdk = 37
@@ -13,7 +31,10 @@ android {
         minSdk = 29 // Android 10
         targetSdk = 36
         versionCode = 1
-        versionName = "0.3.0"
+        versionName = "0.4.0"
+
+        // Celulares (arm64) e emulador (x86_64): deixa o APK menor que com todas as arquiteturas.
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
     buildTypes {
@@ -50,6 +71,9 @@ dependencies {
     // O JNA precisa vir como AAR (com as bibliotecas nativas do Android), não como JAR.
     implementation(libs.vosk.android) { exclude(group = "net.java.dev.jna") }
     implementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
+    // Voz da IANA (sherpa-onnx) e o descompactador do modelo (.tar.bz2).
+    implementation(files(sherpaAar))
+    implementation(libs.commons.compress)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

@@ -3,3 +3,6 @@
 -keepclassmembers class * extends com.sun.jna.** { public *; }
 -keep class org.vosk.** { *; }
 -dontwarn java.awt.**
+
+# sherpa-onnx: as classes de configuração são lidas pelo código nativo (JNI) pelos nomes dos campos.
+-keep class com.k2fsa.sherpa.onnx.** { *; }

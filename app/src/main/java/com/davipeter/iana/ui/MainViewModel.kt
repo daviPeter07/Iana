@@ -32,6 +32,10 @@ data class UiState(
     val waitingPermission: Pair<Permission, String>? = null,
     /** O app foi aberto pelo botão de microfone do widget: começar a ouvir assim que der. */
     val autoListen: Boolean = false,
+    /** A voz da IANA já está no celular. */
+    val voiceReady: Boolean = false,
+    /** Progresso do download da voz (0..100), ou nulo se não está baixando. */
+    val voiceDownload: Int? = null,
 )
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -47,8 +51,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _level = MutableStateFlow(0f)
     val level: StateFlow<Float> = _level.asStateFlow()
 
-    /** False = a voz feminina da IANA ainda não foi instalada. */
-    val hasIanaVoice: Boolean get() = speaker.hasIanaVoice
+    init {
+        _state.update { it.copy(voiceReady = speaker.hasIanaVoice) }
+    }
+
+    /** Baixa a voz da IANA dentro do app, mostrando o progresso. */
+    fun downloadVoice() {
+        if (_state.value.voiceDownload != null) return
+        viewModelScope.launch {
+            _state.update { it.copy(voiceDownload = 0, error = null) }
+            try {
+                speaker.downloadIanaVoice { p -> _state.update { it.copy(voiceDownload = p) } }
+                _state.update { it.copy(voiceDownload = null, voiceReady = true) }
+                speaker.choose(Speaker.IANA)
+                speaker.speak("Pronto, ${Motivation.NAME}. Agora esta é a minha voz.")
+            } catch (e: java.io.IOException) {
+                _state.update {
+                    it.copy(voiceDownload = null, error = "Não consegui baixar a voz. Confira a internet e tente de novo.")
+                }
+            }
+        }
+    }
 
     /** Motores de voz instalados e o que está em uso, para a escolha de voz. */
     val voiceEngines: List<VoiceEngine> get() = speaker.engines

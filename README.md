@@ -55,15 +55,18 @@ A detecção usa o [Vosk](https://alphacephei.com/vosk/), reconhecimento de voz 
 </details>
 
 <details>
-<summary><b>🎙️ Instalando a voz da IANA (feminina, grátis e offline)</b></summary>
+<summary><b>🎙️ A voz da IANA (feminina, grátis e offline)</b></summary>
 
-A IANA fala com a voz **“dii”**, uma voz feminina em português do Brasil do projeto open source [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0). Ela roda **no próprio celular**, então é a mesma voz com ou sem internet e não depende de computador ligado.
+A IANA fala com a voz **“dii”**, uma voz feminina em português do Brasil. Ela roda **dentro do próprio app** pelo motor open source [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0), então é a mesma voz com ou sem internet e não precisa de nenhum outro app.
 
-1. No app, toque em **Baixar voz** (o aviso aparece enquanto a voz não está instalada). A [lista de APKs de voz](https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html#:~:text=arm64%2Dv8a%2Dpt%2Dtts%2Dengine%2Dvits%2Dpiper%2Dpt_BR%2Ddii%2Dhigh) abre já rolada até a voz certa.
-2. Baixe o link destacado: `sherpa-onnx-<versão>-arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high.apk`. Se não aparecer destacado, use *Localizar na página* e busque `pt_BR-dii-high`. Escolha o que tem `arm64-v8a` e a versão mais alta.
-3. Instale, abra o app de voz uma vez e volte pra IANA. Ela passa a usar essa voz automaticamente.
+1. Abra a IANA e toque em **Baixar voz** no aviso do topo. São cerca de 67 MB, baixados uma vez só, com o progresso na tela.
+2. Quando terminar, ela fala “Pronto, Davi. Agora esta é a minha voz.”
 
-**Trocar de voz:** toque em *Voz: … Toque para trocar*, no fim da tela, pra escolher entre as vozes instaladas. Ela fala uma frase na hora pra você ouvir. Pra testar o **Supertonic 3**, um modelo mais novo com várias vozes, busque `supertonic-3` na mesma página e baixe o de `arm64-v8a` com `pt` no nome. Como os APKs do sherpa-onnx podem substituir um ao outro, teste um de cada vez.
+**Trocar de voz:** toque em *Voz: … Toque para trocar*, no fim da tela, pra escolher entre a voz da IANA e os motores de voz instalados no celular.
+
+**Licença da voz:** o modelo “dii” é CC BY-NC-SA 4.0, livre pra uso pessoal e não comercial.
+
+**Ao compilar:** na primeira sincronização, o Gradle baixa a biblioteca do sherpa-onnx (AAR, cerca de 50 MB) das releases oficiais no GitHub e confere o checksum. Ela fica em `app/libs/`, fora do git.
 
 **Reconhecimento de voz offline:** *Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline* › baixe **Português (Brasil)**.
 
@@ -93,7 +96,7 @@ app/src/main/java/com/davipeter/iana/
 ├── data/
 │   ├── news/      Google Notícias via RSS (sem chave de API)
 │   └── calendar/  agenda do celular (CalendarContract)
-├── voice/       ouvir (SpeechListener) e falar (Speaker, voz “dii” no celular)
+├── voice/       ouvir (SpeechListener) e falar (Speaker + EmbeddedVoice, voz “dii” embutida)
 ├── wakeword/    escuta da palavra “IANA” em segundo plano
 ├── widget/      widget da tela inicial (frase + botão de falar)
 ├── ui/          tela em Jetpack Compose (JarvisHud é o painel animado)

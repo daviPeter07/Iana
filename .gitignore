@@ -13,3 +13,5 @@
 *.aab
 *.keystore
 *.jks
+/app/libs/*.aar
+/app/libs/*.part

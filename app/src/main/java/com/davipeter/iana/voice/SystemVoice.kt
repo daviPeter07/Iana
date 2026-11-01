@@ -13,8 +13,8 @@ import kotlin.coroutines.resume
 
 /** Um motor de voz instalado no celular (Google, sherpa-onnx "dii", Supertonic...). */
 data class VoiceEngine(val packageName: String, val label: String) {
-    /** Motores do sherpa-onnx: as vozes open source e offline. */
-    val isOpenSource: Boolean get() = packageName.contains("sherpa", ignoreCase = true)
+    /** A voz embutida ("iana:dii") e os motores do sherpa-onnx são open source e offline. */
+    val isOpenSource: Boolean get() = packageName.startsWith("iana:") || packageName.contains("sherpa", ignoreCase = true)
 
     companion object {
         fun installed(context: Context): List<VoiceEngine> {

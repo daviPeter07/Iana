@@ -3,7 +3,6 @@ package com.davipeter.iana.ui
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,7 +53,8 @@ import com.davipeter.iana.assistant.Permission
 import com.davipeter.iana.assistant.PtBr
 import com.davipeter.iana.assistant.Reply
 import com.davipeter.iana.ui.theme.Iana
-import com.davipeter.iana.voice.Speaker
+import com.davipeter.iana.voice.EmbeddedVoice
+import androidx.compose.material3.LinearProgressIndicator
 import com.davipeter.iana.voice.VoiceEngine
 import com.davipeter.iana.assistant.Motivation
 import com.davipeter.iana.R
@@ -133,10 +133,8 @@ fun HomeScreen(viewModel: MainViewModel) {
             TopBar(wakeRunning, onWakeToggle)
             wakeError?.let { Notice(it, Iana.Erro) }
             wakeStatus?.let { Notice(it, Iana.Rotulo) }
-            if (!viewModel.hasIanaVoice) {
-                InstallVoice {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Speaker.VOICE_DOWNLOAD_URL)))
-                }
+            if (!state.voiceReady) {
+                InstallVoice(progress = state.voiceDownload, onInstall = viewModel::downloadVoice)
             }
 
             Greeting(Modifier.fillMaxWidth().padding(top = 28.dp))
@@ -250,9 +248,9 @@ private fun Notice(text: String, color: androidx.compose.ui.graphics.Color) {
     )
 }
 
-/** Aparece enquanto a voz feminina da IANA não estiver instalada. */
+/** Aparece enquanto a voz feminina da IANA não foi baixada. [progress] nulo = ainda não começou. */
 @Composable
-private fun InstallVoice(onInstall: () -> Unit) {
+private fun InstallVoice(progress: Int?, onInstall: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -263,24 +261,37 @@ private fun InstallVoice(onInstall: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Instale a voz da IANA", style = MaterialTheme.typography.labelLarge, color = Iana.Texto)
+            Text("Baixe a voz da IANA", style = MaterialTheme.typography.labelLarge, color = Iana.Texto)
             Text(
-                "Voz feminina que funciona sem internet. Na página, baixe o arquivo destacado, " +
-                    "que termina em “pt_BR-dii-high.apk” e tem “arm64-v8a” no nome.",
+                if (progress == null) {
+                    "Voz feminina que funciona sem internet. São ${EmbeddedVoice.DOWNLOAD_MB} MB, uma vez só."
+                } else {
+                    "Baixando a voz: $progress%"
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = Iana.Corpo,
             )
+            if (progress != null) {
+                LinearProgressIndicator(
+                    progress = { progress / 100f },
+                    color = Iana.AzulVivo,
+                    trackColor = Iana.Borda,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+            }
         }
-        Spacer(Modifier.width(12.dp))
-        Text(
-            "Baixar voz",
-            style = MaterialTheme.typography.labelLarge,
-            color = Iana.Texto,
-            modifier = Modifier
-                .background(Iana.AzulVivo, RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, onClick = onInstall)
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-        )
+        if (progress == null) {
+            Spacer(Modifier.width(12.dp))
+            Text(
+                "Baixar voz",
+                style = MaterialTheme.typography.labelLarge,
+                color = Iana.Texto,
+                modifier = Modifier
+                    .background(Iana.AzulVivo, RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button, onClick = onInstall)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            )
+        }
     }
 }
 
