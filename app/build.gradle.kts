@@ -1,3 +1,5 @@
+import java.util.Properties
+
 // AGP 9 já traz o suporte a Kotlin embutido: não é preciso o plugin org.jetbrains.kotlin.android.
 plugins {
     alias(libs.plugins.android.application)
@@ -6,13 +8,13 @@ plugins {
 
 // Segredos locais (fora do git): coloque em local.properties a linha
 // picovoice.accessKey=SUA_CHAVE
-val localProperties = java.util.Properties().apply {
+val localProperties = Properties().apply {
     rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
     namespace = "com.davipeter.iana"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.davipeter.iana"
