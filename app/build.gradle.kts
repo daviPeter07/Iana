@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+
 // AGP 9 já traz o suporte a Kotlin embutido: não é preciso o plugin org.jetbrains.kotlin.android.
 plugins {
     alias(libs.plugins.android.application)
@@ -16,8 +18,8 @@ if (!sherpaAar.exists()) {
     logger.lifecycle("Baixando $url")
     val tmp = File(sherpaAar.path + ".part")
     uri(url).toURL().openStream().use { input -> tmp.outputStream().use { input.copyTo(it) } }
-    val digest = java.security.MessageDigest.getInstance("SHA-256").digest(tmp.readBytes())
-    val actual = digest.joinToString("") { "%02x".format(it) }
+    val digest = MessageDigest.getInstance("SHA-256").digest(tmp.readBytes())
+    val actual = digest.joinToString("") { byte -> "%02x".format(byte) }
     check(actual == sherpaSha256) { "Checksum do sherpa-onnx não confere: $actual" }
     tmp.renameTo(sherpaAar)
 }
