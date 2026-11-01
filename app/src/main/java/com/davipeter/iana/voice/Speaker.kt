@@ -22,7 +22,14 @@ class Speaker(context: Context) {
     fun shutdown() = system.shutdown()
 
     companion object {
-        /** Página com os APKs do motor de voz (procure o "pt_BR-dii-high", arm64-v8a). */
-        const val VOICE_DOWNLOAD_URL = "https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html"
+        /** Trecho do nome do APK certo: celular comum (arm64-v8a) + voz "dii" em pt-BR. */
+        const val VOICE_APK_HINT = "arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high"
+
+        /**
+         * Página com os APKs do motor de voz. O final "#:~:text=" faz navegadores baseados no Chrome
+         * (Chrome, Brave, Edge) rolarem até a voz certa e destacá-la. O "-" precisa ir como %2D.
+         */
+        val VOICE_DOWNLOAD_URL =
+            "https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html#:~:text=" + VOICE_APK_HINT.replace("-", "%2D")
     }
 }

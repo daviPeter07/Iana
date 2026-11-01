@@ -231,7 +231,8 @@ private fun InstallVoice(onInstall: () -> Unit) {
         Column(Modifier.weight(1f)) {
             Text("Instale a voz da IANA", style = MaterialTheme.typography.labelLarge, color = Iana.Texto)
             Text(
-                "Voz feminina que funciona sem internet. Por enquanto ela usa a voz padrão do celular.",
+                "Voz feminina que funciona sem internet. Na página, baixe o arquivo destacado, " +
+                    "que termina em “pt_BR-dii-high.apk” e tem “arm64-v8a” no nome.",
                 style = MaterialTheme.typography.bodySmall,
                 color = Iana.Corpo,
             )

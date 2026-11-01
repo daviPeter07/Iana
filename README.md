@@ -61,8 +61,8 @@ Se a IANA disparar à toa ou não ouvir, ajuste `SENSITIVITY` em `WakeWordServic
 
 A IANA fala com a voz **“dii”**, uma voz feminina em português do Brasil do projeto open source [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0). Ela roda **no próprio celular**, então é a mesma voz com ou sem internet e não depende de computador ligado.
 
-1. No app, toque em **Baixar voz** (o aviso aparece enquanto a voz não está instalada), ou abra a [lista de APKs de voz](https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html).
-2. Baixe a versão mais recente terminada em **`arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high.apk`**.
+1. No app, toque em **Baixar voz** (o aviso aparece enquanto a voz não está instalada). A [lista de APKs de voz](https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html#:~:text=arm64%2Dv8a%2Dpt%2Dtts%2Dengine%2Dvits%2Dpiper%2Dpt_BR%2Ddii%2Dhigh) abre já rolada até a voz certa.
+2. Baixe o link destacado: `sherpa-onnx-<versão>-arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high.apk`. Se não aparecer destacado, use *Localizar na página* e busque `pt_BR-dii-high`. Escolha o que tem `arm64-v8a` e a versão mais alta.
 3. Instale, abra o app de voz uma vez e volte pra IANA. Ela passa a usar essa voz automaticamente.
 
 **Reconhecimento de voz offline:** *Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline* › baixe **Português (Brasil)**.
