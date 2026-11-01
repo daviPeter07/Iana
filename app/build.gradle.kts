@@ -24,6 +24,10 @@ android {
         versionName = "0.2.0"
 
         buildConfigField("String", "PICOVOICE_ACCESS_KEY", "\"${localProperties.getProperty("picovoice.accessKey", "")}\"")
+        // Voz pelo VoiceStudio no computador (opcional). Ex.: voicestudio.url=http://192.168.0.10:3900
+        buildConfigField("String", "VOICESTUDIO_URL", "\"${localProperties.getProperty("voicestudio.url", "")}\"")
+        buildConfigField("String", "VOICESTUDIO_MODEL", "\"${localProperties.getProperty("voicestudio.model", "kokoro")}\"")
+        buildConfigField("String", "VOICESTUDIO_VOICE", "\"${localProperties.getProperty("voicestudio.voice", "pf_dora")}\"")
     }
 
     buildTypes {

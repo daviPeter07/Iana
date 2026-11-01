@@ -57,10 +57,36 @@ Se a IANA disparar à toa ou não ouvir, ajuste `SENSITIVITY` em `WakeWordServic
 </details>
 
 <details>
-<summary><b>🎙️ Deixando a voz melhor e funcionando offline</b></summary>
+<summary><b>🎙️ Voz feminina, open source e grátis</b></summary>
 
-- **Reconhecimento offline:** *Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline* › baixe **Português (Brasil)**.
-- **Voz da IANA:** *Configurações › Acessibilidade › Saída de texto para voz* › mecanismo Google, idioma **Português (Brasil)**. Ali dá pra escolher outras vozes.
+A IANA escolhe a voz sozinha, nesta ordem:
+
+1. **VoiceStudio no seu computador**, se configurado e ligado. É a voz com mais qualidade.
+2. **Voz offline no celular.** Se houver um motor do sherpa-onnx instalado, ela usa ele; senão, usa a voz padrão do Android.
+
+**Voz offline no celular (recomendado)**
+
+O [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) é open source (Apache 2.0) e tem um app de voz que roda no próprio celular, sem internet.
+
+1. Abra a [lista de APKs de voz](https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html) no celular.
+2. Baixe a versão mais recente terminada em **`arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high.apk`**. A “dii” é uma voz feminina em português do Brasil.
+3. Instale e abra o app uma vez. A IANA detecta o motor sozinha, e a tela mostra qual voz está em uso.
+
+**VoiceStudio no computador (opcional)**
+
+O [VoiceStudio](https://voicestudio.sh/pt-BR/) é open source (AGPL) e grátis. Ele roda no computador e expõe uma API compatível com a da OpenAI. O celular precisa estar no mesmo Wi-Fi.
+
+1. Instale e abra o VoiceStudio. A API fica em `http://localhost:3900/v1`.
+2. Descubra o IP do computador na rede (ex.: `192.168.0.10`) e coloque no `local.properties`:
+   ```properties
+   voicestudio.url=http://192.168.0.10:3900
+   voicestudio.model=kokoro
+   voicestudio.voice=pf_dora
+   ```
+   `pf_dora` é a voz feminina pt-BR do Kokoro. Confira os nomes de modelo e voz disponíveis na sua instalação em `http://localhost:3900/v1/models`.
+3. Se o computador estiver desligado, a IANA usa a voz do celular e só tenta o VoiceStudio de novo depois de 5 minutos.
+
+**Reconhecimento de voz offline:** *Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline* › baixe **Português (Brasil)**.
 
 </details>
 
@@ -87,10 +113,10 @@ app/src/main/java/com/davipeter/iana/
 ├── data/
 │   ├── news/      Google Notícias via RSS (sem chave de API)
 │   └── calendar/  agenda do celular (CalendarContract)
-├── voice/       ouvir (SpeechListener) e falar (Speaker)
+├── voice/       ouvir (SpeechListener) e falar (Speaker: VoiceStudio ou voz do celular)
 ├── wakeword/    escuta da palavra “IANA” em segundo plano
 ├── widget/      widget da tela inicial (Jetpack Glance + WorkManager)
-├── ui/          tela em Jetpack Compose
+├── ui/          tela em Jetpack Compose (VoiceOrb é a bola animada)
 └── IanaApp.kt   monta as dependências
 ```
 
@@ -111,3 +137,7 @@ O parser, o roteador, o leitor de RSS e os dados do widget têm testes de unidad
 - [x] Widget com manchetes, próximo compromisso e botão de falar
 - [x] Palavra de ativação “IANA” em segundo plano
 - [ ] Resumo falado da manhã (notícias, agenda e DMs pendentes)
+
+---
+
+<sub>Fontes: [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) e [Onest](https://fonts.google.com/specimen/Onest), sob a SIL Open Font License (veja `licenses/`).</sub>

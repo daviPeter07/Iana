@@ -41,13 +41,15 @@ class WidgetSnapshotTest {
             calendar(CalendarEvent("Dentista", tue.atTime(9, 30), tue.atTime(10, 30), false, null)),
         )
         assertEquals(listOf("A", "B", "C"), snap.headlines)
-        assertEquals("Ter 3/11 9h30 · Dentista", snap.nextEvent)
+        assertEquals("Dentista", snap.nextEventTitle)
+        assertEquals("Ter 3/11 às 9h30", snap.nextEventWhen)
         assertEquals(now, snap.updatedAt)
     }
 
     @Test fun `evento acontecendo agora`() {
         val snap = build(news(), calendar(CalendarEvent("Reunião", now.minusMinutes(30), now.plusMinutes(30), false, null)))
-        assertEquals("Hoje agora · Reunião", snap.nextEvent)
+        assertEquals("Reunião", snap.nextEventTitle)
+        assertEquals("Hoje, agora", snap.nextEventWhen)
     }
 
     @Test fun `sem internet mantem manchetes anteriores`() {

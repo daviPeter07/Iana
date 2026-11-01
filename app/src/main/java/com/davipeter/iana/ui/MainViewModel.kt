@@ -42,6 +42,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    /** Volume da voz enquanto ouve (0 a 1). Separado do estado para não redesenhar a tela toda. */
+    private val _level = MutableStateFlow(0f)
+    val level: StateFlow<Float> = _level.asStateFlow()
+
+    /** Qual voz está respondendo (VoiceStudio ou o motor do celular). */
+    val voiceName: String get() = speaker.description
+
     private var job: Job? = null
     private var nextId = 0L
 
@@ -61,7 +68,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 _state.update { it.copy(phase = Phase.Listening, partial = "", error = null) }
                 val heard = try {
-                    listener.listen { partial -> _state.update { it.copy(partial = partial) } }
+                    listener.listen(
+                        onPartial = { partial -> _state.update { it.copy(partial = partial) } },
+                        onLevel = { _level.value = it },
+                    )
                 } catch (e: SpeechException) {
                     _state.update { it.copy(phase = Phase.Idle, partial = "", error = e.friendlyMessage) }
                     return@launch
@@ -72,6 +82,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 respond(heard)
             } finally {
+                _level.value = 0f
                 WakeWordService.resumeAfterApp()
             }
         }

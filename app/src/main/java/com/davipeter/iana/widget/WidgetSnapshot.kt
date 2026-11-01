@@ -9,8 +9,10 @@ import java.time.LocalDateTime
 /** O que o widget mostra. Fica salvo no aparelho, porque o widget não pode buscar dados sozinho. */
 data class WidgetSnapshot(
     val headlines: List<String> = emptyList(),
-    /** Ex.: "Amanhã 9h · Dentista". Nulo = nada nos próximos 7 dias. */
-    val nextEvent: String? = null,
+    /** Título do próximo compromisso. Nulo = nada nos próximos 7 dias. */
+    val nextEventTitle: String? = null,
+    /** Quando: "Amanhã às 9h", "Hoje, agora", "Ter 3/11, o dia todo". */
+    val nextEventWhen: String? = null,
     val calendarAllowed: Boolean = true,
     val updatedAt: LocalDateTime? = null,
 )
@@ -35,24 +37,24 @@ object WidgetSnapshots {
         }
 
         var calendarAllowed = true
-        val nextEvent = try {
+        val next = try {
             val today = now.toLocalDate()
             calendar.events(now, now.plusDays(7))
                 .firstOrNull { e -> if (e.allDay) !e.start.toLocalDate().isBefore(today) else e.end.isAfter(now) }
                 ?.let { e ->
                     val day = PtBr.shortDay(e.start.toLocalDate(), today)
                     val time = when {
-                        e.allDay -> ""
-                        e.start <= now -> " agora"
-                        else -> " " + PtBr.time(e.start.toLocalTime())
+                        e.allDay -> ", o dia todo"
+                        e.start <= now -> ", agora"
+                        else -> " às " + PtBr.time(e.start.toLocalTime())
                     }
-                    "$day$time · ${e.title}"
+                    e.title to "$day$time"
                 }
         } catch (e: SecurityException) {
             calendarAllowed = false
             null
         }
 
-        return WidgetSnapshot(headlines, nextEvent, calendarAllowed, now)
+        return WidgetSnapshot(headlines, next?.first, next?.second, calendarAllowed, now)
     }
 }

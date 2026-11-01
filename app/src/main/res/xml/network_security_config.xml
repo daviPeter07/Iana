@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O VoiceStudio roda no computador de casa, em http:// (sem TLS), num IP da rede local.
+     Como o IP muda de casa pra casa, liberamos http em geral; a internet continua em https. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

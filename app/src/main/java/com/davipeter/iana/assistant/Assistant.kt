@@ -11,6 +11,9 @@ import java.time.LocalDateTime
 
 enum class Permission { CALENDAR }
 
+/** Uma linha extra mostrada na tela; [note] é a informação secundária (fonte, agenda...). */
+data class Detail(val text: String, val note: String? = null)
+
 /**
  * Resposta da assistente.
  * @param speech o que ela fala em voz alta.
@@ -20,7 +23,7 @@ enum class Permission { CALENDAR }
  */
 data class Reply(
     val speech: String,
-    val details: List<String> = emptyList(),
+    val details: List<Detail> = emptyList(),
     val needs: Permission? = null,
     val changedCalendar: Boolean = false,
 )
@@ -65,11 +68,11 @@ class Assistant(
             Command.Help -> Reply(
                 "Eu posso ler as notícias, dizer sua agenda e marcar compromissos.",
                 details = listOf(
-                    "“Notícias” ou “notícias sobre futebol”",
-                    "“Minha agenda de amanhã” / “agenda da semana”",
-                    "“Qual meu próximo compromisso?”",
-                    "“Marca dentista sexta às 10h”",
-                    "“Que horas são?”",
+                    Detail("Notícias", "ou “notícias sobre futebol”"),
+                    Detail("Minha agenda de amanhã", "ou “agenda da semana”"),
+                    Detail("Qual meu próximo compromisso?"),
+                    Detail("Marca dentista sexta às 10h"),
+                    Detail("Que horas são?"),
                 ),
             )
             Command.Greeting -> Reply("${greeting(now)}! Em que posso ajudar?")
@@ -91,7 +94,7 @@ class Assistant(
         }
         val intro = if (topic == null) "Principais notícias." else "Notícias sobre $topic."
         val speech = intro + " " + headlines.joinToString(" ") { it.title.trimEnd('.') + "." }
-        val details = headlines.map { h -> if (h.source != null) "${h.title} — ${h.source}" else h.title }
+        val details = headlines.map { h -> Detail(h.title, h.source) }
         return Reply(speech, details)
     }
 
@@ -112,7 +115,7 @@ class Assistant(
         val tail = if (more > 0) "; e mais ${PtBr.plural(more, "compromisso", "compromissos")}." else "."
         return Reply(
             "Você tem ${PtBr.plural(events.size, "compromisso", "compromissos")} $label: $spoken$tail",
-            details = events.map { describe(it, today, multiDay) },
+            details = events.map { Detail(describe(it, today, multiDay), it.calendarName) },
         )
     }
 
@@ -140,7 +143,7 @@ class Assistant(
             (command.time?.let { " às ${PtBr.time(it)}" } ?: ", o dia todo")
         return Reply(
             "Pronto. Marquei ${command.title} $whenText.",
-            details = listOf("Agenda: ${created.calendarName}"),
+            details = listOf(Detail(command.title, "Agenda ${created.calendarName}")),
             changedCalendar = true,
         )
     }

@@ -41,11 +41,11 @@ import com.davipeter.iana.R
 import com.davipeter.iana.assistant.PtBr
 import com.davipeter.iana.ui.MainActivity
 
-private val Background = Color(0xFF0B0F14)
-private val Card = Color(0xFF161D25)
-private val Primary = Color(0xFF4FD1FF)
-private val OnBackground = Color(0xFFE3E8EE)
-private val Muted = Color(0xFF9AA7B4)
+private val Noite = Color(0xFF18121F)
+private val Veludo = Color(0xFF231B2D)
+private val Lua = Color(0xFFF3ECE2)
+private val Nevoa = Color(0xFF9A8FA8)
+private val Ambar = Color(0xFFF4B544)
 
 /** Widget da tela inicial: próximo compromisso, manchetes e botão para falar com a IANA. */
 class IanaWidget : GlanceAppWidget() {
@@ -65,73 +65,77 @@ class IanaWidget : GlanceAppWidget() {
         Column(
             GlanceModifier
                 .fillMaxSize()
-                .background(Background)
-                .cornerRadius(20.dp)
-                .padding(14.dp)
+                .background(Noite)
+                .cornerRadius(24.dp)
+                .padding(16.dp)
                 .clickable(actionStartActivity<MainActivity>()),
         ) {
+            // Compromisso em destaque, com o botão de falar ao lado.
             Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    "IANA",
-                    style = TextStyle(color = ColorProvider(Primary), fontSize = 16.sp, fontWeight = FontWeight.Bold),
-                    modifier = GlanceModifier.defaultWeight(),
-                )
-                Image(
-                    ImageProvider(R.drawable.ic_refresh),
-                    contentDescription = "Atualizar",
-                    colorFilter = ColorFilter.tint(ColorProvider(Muted)),
-                    modifier = GlanceModifier.size(28.dp).padding(4.dp).clickable(actionRunCallback<RefreshAction>()),
-                )
-                Spacer(GlanceModifier.width(6.dp))
+                Column(GlanceModifier.defaultWeight()) {
+                    val (title, whenText) = when {
+                        !snapshot.calendarAllowed -> "Agenda bloqueada" to "Abra a IANA para liberar"
+                        snapshot.nextEventTitle != null -> snapshot.nextEventTitle.orEmpty() to snapshot.nextEventWhen.orEmpty()
+                        snapshot.updatedAt == null -> "Carregando…" to ""
+                        else -> "Agenda livre" to "Nada nos próximos 7 dias"
+                    }
+                    Text(
+                        title,
+                        style = TextStyle(color = ColorProvider(Lua), fontSize = 18.sp, fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                    )
+                    if (whenText.isNotEmpty()) {
+                        Text(whenText, style = TextStyle(color = ColorProvider(Ambar), fontSize = 13.sp), maxLines = 1)
+                    }
+                }
+                Spacer(GlanceModifier.width(12.dp))
                 Box(
-                    GlanceModifier.size(40.dp).background(Primary).cornerRadius(20.dp)
+                    GlanceModifier.size(48.dp).background(Ambar).cornerRadius(24.dp)
                         .clickable(actionStartActivity(listen)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
                         ImageProvider(R.drawable.ic_mic),
                         contentDescription = "Falar com a IANA",
-                        colorFilter = ColorFilter.tint(ColorProvider(Background)),
-                        modifier = GlanceModifier.size(22.dp),
+                        colorFilter = ColorFilter.tint(ColorProvider(Noite)),
+                        modifier = GlanceModifier.size(24.dp),
                     )
                 }
             }
 
-            Spacer(GlanceModifier.height(10.dp))
+            Spacer(GlanceModifier.height(14.dp))
 
-            val eventText = when {
-                !snapshot.calendarAllowed -> "Abra o app para liberar a agenda"
-                snapshot.nextEvent != null -> snapshot.nextEvent
-                snapshot.updatedAt == null -> "Carregando…"
-                else -> "Nada na agenda nos próximos 7 dias"
-            }
-            Column(GlanceModifier.fillMaxWidth().background(Card).cornerRadius(12.dp).padding(10.dp)) {
-                Text("PRÓXIMO", style = TextStyle(color = ColorProvider(Muted), fontSize = 10.sp, fontWeight = FontWeight.Medium))
-                Text(eventText, style = TextStyle(color = ColorProvider(OnBackground), fontSize = 14.sp), maxLines = 1)
-            }
-
-            Spacer(GlanceModifier.height(10.dp))
-
-            if (snapshot.headlines.isEmpty()) {
-                Text(
-                    if (snapshot.updatedAt == null) "Buscando notícias…" else "Sem notícias agora",
-                    style = TextStyle(color = ColorProvider(Muted), fontSize = 13.sp),
-                )
-            } else {
-                snapshot.headlines.forEach { title ->
+            // Manchetes num bloco mais escuro.
+            Column(GlanceModifier.fillMaxWidth().defaultWeight().background(Veludo).cornerRadius(16.dp).padding(12.dp)) {
+                if (snapshot.headlines.isEmpty()) {
                     Text(
-                        "• $title",
-                        style = TextStyle(color = ColorProvider(OnBackground), fontSize = 13.sp),
-                        maxLines = 2,
-                        modifier = GlanceModifier.padding(bottom = 4.dp),
+                        if (snapshot.updatedAt == null) "Buscando notícias…" else "Sem conexão para buscar notícias",
+                        style = TextStyle(color = ColorProvider(Nevoa), fontSize = 13.sp),
                     )
+                } else {
+                    snapshot.headlines.forEach { title ->
+                        Text(
+                            title,
+                            style = TextStyle(color = ColorProvider(Lua), fontSize = 13.sp),
+                            maxLines = 2,
+                            modifier = GlanceModifier.padding(bottom = 8.dp),
+                        )
+                    }
                 }
             }
 
-            snapshot.updatedAt?.let {
+            Spacer(GlanceModifier.height(8.dp))
+            Row(GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "Atualizado ${PtBr.time(it.toLocalTime())}",
-                    style = TextStyle(color = ColorProvider(Muted), fontSize = 10.sp),
+                    snapshot.updatedAt?.let { "Atualizado às ${PtBr.time(it.toLocalTime())}" } ?: "",
+                    style = TextStyle(color = ColorProvider(Nevoa), fontSize = 11.sp),
+                    modifier = GlanceModifier.defaultWeight(),
+                )
+                Image(
+                    ImageProvider(R.drawable.ic_refresh),
+                    contentDescription = "Atualizar",
+                    colorFilter = ColorFilter.tint(ColorProvider(Nevoa)),
+                    modifier = GlanceModifier.size(28.dp).padding(5.dp).clickable(actionRunCallback<RefreshAction>()),
                 )
             }
         }

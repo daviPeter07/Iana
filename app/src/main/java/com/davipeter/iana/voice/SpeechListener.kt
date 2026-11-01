@@ -35,9 +35,12 @@ class SpeechListener(private val context: Context) {
 
     /**
      * Ouve até a pessoa parar de falar. Retorna o texto reconhecido, ou "" se não ouviu nada.
-     * [onPartial] recebe o texto parcial enquanto a pessoa fala.
+     * [onPartial] recebe o texto parcial enquanto a pessoa fala; [onLevel], o volume da voz de 0 a 1.
      */
-    suspend fun listen(onPartial: (String) -> Unit = {}): String = suspendCancellableCoroutine { cont ->
+    suspend fun listen(
+        onPartial: (String) -> Unit = {},
+        onLevel: (Float) -> Unit = {},
+    ): String = suspendCancellableCoroutine { cont ->
         val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
 
         fun release() = main.post { recognizer.destroy() }
@@ -68,7 +71,8 @@ class SpeechListener(private val context: Context) {
 
             override fun onReadyForSpeech(params: Bundle?) = Unit
             override fun onBeginningOfSpeech() = Unit
-            override fun onRmsChanged(rmsdB: Float) = Unit
+            // O Android manda algo entre -2 dB (silêncio) e ~10 dB (fala alta).
+            override fun onRmsChanged(rmsdB: Float) = onLevel(((rmsdB + 2f) / 12f).coerceIn(0f, 1f))
             override fun onBufferReceived(buffer: ByteArray?) = Unit
             override fun onEndOfSpeech() = Unit
             override fun onEvent(eventType: Int, params: Bundle?) = Unit

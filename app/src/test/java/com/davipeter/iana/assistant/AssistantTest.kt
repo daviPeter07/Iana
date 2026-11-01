@@ -47,7 +47,7 @@ class AssistantTest {
         val news = FakeNews(listOf(Headline("Chuva forte em SP", "G1", null, null), Headline("Dólar cai.", null, null, null)))
         val reply = assistant(news = news).handle("notícias")
         assertEquals("Principais notícias. Chuva forte em SP. Dólar cai.", reply.speech)
-        assertEquals(listOf("Chuva forte em SP — G1", "Dólar cai."), reply.details)
+        assertEquals(listOf(Detail("Chuva forte em SP", "G1"), Detail("Dólar cai.", null)), reply.details)
         assertEquals(null, news.lastTopic)
     }
 

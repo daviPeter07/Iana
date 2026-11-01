@@ -1,63 +1,55 @@
 package com.davipeter.iana.voice
 
 import android.content.Context
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.suspendCancellableCoroutine
-import java.util.Locale
-import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.resume
+import android.os.SystemClock
+import com.davipeter.iana.BuildConfig
+import java.io.IOException
 
-/** Voz da IANA: TextToSpeech do Android em português do Brasil. */
+/**
+ * A voz da IANA. Tenta o VoiceStudio no computador (se configurado) e, se ele não responder,
+ * fala com a voz offline do celular. Depois de uma falha, fica 5 minutos sem tentar o servidor
+ * para não atrasar as respostas.
+ */
 class Speaker(context: Context) {
 
-    private val initStatus = CompletableDeferred<Int>()
-    private val tts = TextToSpeech(context.applicationContext) { status -> initStatus.complete(status) }
-    private val pending = ConcurrentHashMap<String, () -> Unit>()
-    private var configured = false
-
-    private val progress = object : UtteranceProgressListener() {
-        override fun onStart(utteranceId: String) = Unit
-        override fun onDone(utteranceId: String) = finish(utteranceId)
-        override fun onStop(utteranceId: String, interrupted: Boolean) = finish(utteranceId)
-
-        @Deprecated("Deprecated in Java")
-        override fun onError(utteranceId: String) = finish(utteranceId)
-        override fun onError(utteranceId: String, errorCode: Int) = finish(utteranceId)
+    private val system = SystemVoice(context)
+    private val studio = BuildConfig.VOICESTUDIO_URL.takeIf { it.isNotBlank() }?.let {
+        VoiceStudioVoice(context.applicationContext, it, BuildConfig.VOICESTUDIO_MODEL, BuildConfig.VOICESTUDIO_VOICE)
     }
+    private var studioDownUntil = 0L
 
-    private fun finish(id: String) {
-        pending.remove(id)?.invoke()
-    }
-
-    /** Fala e só retorna quando terminar (ou for interrompida). Retorna false se não houver voz pt-BR. */
+    /** Fala e retorna quando terminar. False = não há voz disponível. */
     suspend fun speak(text: String): Boolean {
-        if (initStatus.await() != TextToSpeech.SUCCESS) return false
-        if (!configured) {
-            val lang = tts.setLanguage(Locale.forLanguageTag("pt-BR"))
-            if (lang == TextToSpeech.LANG_MISSING_DATA || lang == TextToSpeech.LANG_NOT_SUPPORTED) return false
-            tts.setOnUtteranceProgressListener(progress)
-            configured = true
-        }
-        val id = UUID.randomUUID().toString()
-        suspendCancellableCoroutine { cont ->
-            pending[id] = { if (cont.isActive) cont.resume(Unit) }
-            cont.invokeOnCancellation {
-                pending.remove(id)
-                tts.stop()
+        if (studio != null && SystemClock.elapsedRealtime() >= studioDownUntil) {
+            try {
+                studio.speak(text)
+                return true
+            } catch (e: IOException) {
+                studioDownUntil = SystemClock.elapsedRealtime() + STUDIO_RETRY_MS
             }
-            if (tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, id) == TextToSpeech.ERROR) finish(id)
         }
-        return true
+        return system.speak(text)
     }
+
+    /** "VoiceStudio" ou o nome do motor do celular. */
+    val description: String
+        get() = if (studio != null && SystemClock.elapsedRealtime() >= studioDownUntil) {
+            "VoiceStudio"
+        } else {
+            system.engineName.orEmpty()
+        }
 
     fun stop() {
-        tts.stop()
+        studio?.stop()
+        system.stop()
     }
 
     fun shutdown() {
-        tts.shutdown()
+        studio?.stop()
+        system.shutdown()
+    }
+
+    private companion object {
+        const val STUDIO_RETRY_MS = 5 * 60 * 1000L
     }
 }
