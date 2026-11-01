@@ -17,70 +17,59 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.davipeter.iana.R
 
-/** Paleta "noite e âmbar". */
+/**
+ * Paleta da SyncForge, na versão escura (o "card escuro de destaque" da marca),
+ * que combina com o painel estilo Jarvis.
+ */
 object Iana {
-    val Noite = Color(0xFF18121F) // fundo
-    val Veludo = Color(0xFF231B2D) // superfícies
-    val Linha = Color(0xFF3A2F47) // contornos
-    val Lua = Color(0xFFF3ECE2) // texto principal
-    val Nevoa = Color(0xFF9A8FA8) // texto secundário
-    val Ambar = Color(0xFFF4B544) // a cor da IANA
-    val AmbarClaro = Color(0xFFFFE2A3)
-    val Lilas = Color(0xFFB8A4E3) // o que você disse
-    val Coral = Color(0xFFFF8A7A) // erros
+    val Fundo = Color(0xFF00072D) // azul-noite da marca
+    val Painel = Color(0xFF0A1440) // superfícies um tom acima do fundo
+    val Borda = Color(0xFF1F2A5C)
+    val Texto = Color(0xFFEEF2FF)
+    val Corpo = Color(0xFFC9D3F5)
+    val Rotulo = Color(0xFF7E9DFF) // textos secundários e detalhes do HUD
+    val AzulVivo = Color(0xFF2459F5) // brilhos e o núcleo do HUD
+    val AzulMarca = Color(0xFF0A4DB8)
+    val Erro = Color(0xFFFF8A8A)
 }
 
-private fun bricolage(weight: Int, width: Float, opticalSize: Float) = Font(
-    R.font.bricolage_grotesque,
+private fun dmSans(weight: Int, opticalSize: Float) = Font(
+    R.font.dm_sans,
     FontWeight(weight),
-    variationSettings = FontVariation.Settings(
-        FontVariation.weight(weight),
-        FontVariation.width(width),
-        FontVariation.Setting("opsz", opticalSize),
-    ),
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight), FontVariation.Setting("opsz", opticalSize)),
 )
 
-private fun onest(weight: Int) = Font(
-    R.font.onest,
-    FontWeight(weight),
-    variationSettings = FontVariation.Settings(FontVariation.weight(weight)),
+/** DM Sans para tudo, como no padrão da SyncForge. */
+val DmSans = FontFamily(
+    dmSans(400, 14f),
+    dmSans(500, 14f),
+    dmSans(700, 32f),
 )
-
-/** Bricolage Grotesque condensada: saudação e títulos. */
-val Display = FontFamily(bricolage(700, 85f, 72f))
-
-/** Logotipo "IANA": mais estreito e mais pesado. */
-val Wordmark = FontFamily(bricolage(800, 75f, 24f))
-
-/** Onest: todo o texto corrido. */
-val Body = FontFamily(onest(400), onest(500), onest(600))
 
 private val Colors = darkColorScheme(
-    primary = Iana.Ambar,
-    onPrimary = Iana.Noite,
-    secondary = Iana.Lilas,
-    onSecondary = Iana.Noite,
-    background = Iana.Noite,
-    onBackground = Iana.Lua,
-    surface = Iana.Noite,
-    onSurface = Iana.Lua,
-    surfaceVariant = Iana.Veludo,
-    onSurfaceVariant = Iana.Nevoa,
-    surfaceContainerHighest = Iana.Linha,
-    outline = Iana.Linha,
-    outlineVariant = Iana.Linha,
-    error = Iana.Coral,
+    primary = Iana.AzulVivo,
+    onPrimary = Iana.Texto,
+    secondary = Iana.Rotulo,
+    background = Iana.Fundo,
+    onBackground = Iana.Texto,
+    surface = Iana.Fundo,
+    onSurface = Iana.Texto,
+    surfaceVariant = Iana.Painel,
+    onSurfaceVariant = Iana.Corpo,
+    outline = Iana.Borda,
+    outlineVariant = Iana.Borda,
+    error = Iana.Erro,
 )
 
-// Escala em quartas (≈1,25): 12 · 14 · 16 · 19 · 24 · 44.
 private val Type = Typography(
-    displayMedium = TextStyle(fontFamily = Display, fontWeight = FontWeight(700), fontSize = 44.sp, lineHeight = 46.sp, letterSpacing = (-0.02).em),
-    titleLarge = TextStyle(fontFamily = Wordmark, fontWeight = FontWeight(800), fontSize = 20.sp, letterSpacing = 0.04.em),
-    headlineSmall = TextStyle(fontFamily = Body, fontWeight = FontWeight(400), fontSize = 19.sp, lineHeight = 27.sp),
-    bodyLarge = TextStyle(fontFamily = Body, fontWeight = FontWeight(400), fontSize = 16.sp, lineHeight = 23.sp),
-    bodyMedium = TextStyle(fontFamily = Body, fontWeight = FontWeight(400), fontSize = 15.sp, lineHeight = 21.sp),
-    bodySmall = TextStyle(fontFamily = Body, fontWeight = FontWeight(400), fontSize = 12.sp, lineHeight = 16.sp),
-    labelLarge = TextStyle(fontFamily = Body, fontWeight = FontWeight(500), fontSize = 14.sp, lineHeight = 18.sp),
+    headlineMedium = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(700), fontSize = 28.sp, lineHeight = 34.sp, letterSpacing = (-0.02).em),
+    titleLarge = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(700), fontSize = 20.sp, letterSpacing = 0.12.em),
+    titleMedium = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(500), fontSize = 19.sp, lineHeight = 27.sp),
+    bodyLarge = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(400), fontSize = 16.sp, lineHeight = 23.sp),
+    bodyMedium = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(400), fontSize = 15.sp, lineHeight = 21.sp),
+    bodySmall = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(400), fontSize = 12.sp, lineHeight = 16.sp),
+    labelLarge = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(500), fontSize = 14.sp, lineHeight = 18.sp),
+    labelSmall = TextStyle(fontFamily = DmSans, fontWeight = FontWeight(500), fontSize = 11.sp, letterSpacing = 0.08.em),
 )
 
 @Composable

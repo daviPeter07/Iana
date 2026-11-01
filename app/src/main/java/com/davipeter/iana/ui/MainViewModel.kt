@@ -46,8 +46,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _level = MutableStateFlow(0f)
     val level: StateFlow<Float> = _level.asStateFlow()
 
-    /** Qual voz está respondendo (VoiceStudio ou o motor do celular). */
-    val voiceName: String get() = speaker.description
+    /** False = a voz feminina da IANA ainda não foi instalada. */
+    val hasIanaVoice: Boolean get() = speaker.hasIanaVoice
 
     private var job: Job? = null
     private var nextId = 0L

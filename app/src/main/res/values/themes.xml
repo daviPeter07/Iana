@@ -3,6 +3,6 @@
     <style name="Theme.Iana" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/iana_background</item>
     </style>
-    <color name="iana_background">#FF18121F</color>
-    <color name="iana_primary">#FFF4B544</color>
+    <color name="iana_background">#FF00072D</color>
+    <color name="iana_primary">#FF2459F5</color>
 </resources>

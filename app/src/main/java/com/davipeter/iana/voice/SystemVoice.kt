@@ -14,14 +14,17 @@ import kotlin.coroutines.resume
 /**
  * Voz do próprio celular (offline): o TextToSpeech do Android em português do Brasil.
  *
- * Se houver um motor de voz do sherpa-onnx instalado (voz feminina "dii", open source),
- * ele é usado no lugar do motor padrão. Veja o README.
+ * A voz da IANA é a "dii" (feminina, pt-BR) do sherpa-onnx, instalada como motor de voz do
+ * Android. Ela roda no celular, então é a mesma com ou sem internet. Sem ela, cai no motor padrão.
  */
 class SystemVoice(context: Context) {
 
     private val initStatus = CompletableDeferred<Int>()
     private val enginePackage = preferredEngine(context)
     private val tts = TextToSpeech(context.applicationContext, { status -> initStatus.complete(status) }, enginePackage)
+
+    /** True se a voz da IANA (motor sherpa-onnx) está instalada. */
+    val hasIanaVoice: Boolean = enginePackage != null
 
     /** Nome do motor em uso (ex.: "Speech Services by Google", "sherpa-onnx TTS Engine"), para mostrar na tela. */
     val engineName: String? = runCatching {

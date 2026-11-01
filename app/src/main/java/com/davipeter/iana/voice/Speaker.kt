@@ -1,55 +1,28 @@
 package com.davipeter.iana.voice
 
 import android.content.Context
-import android.os.SystemClock
-import com.davipeter.iana.BuildConfig
-import java.io.IOException
 
 /**
- * A voz da IANA. Tenta o VoiceStudio no computador (se configurado) e, se ele não responder,
- * fala com a voz offline do celular. Depois de uma falha, fica 5 minutos sem tentar o servidor
- * para não atrasar as respostas.
+ * A voz da IANA. Sempre a mesma voz, online ou offline: o motor sherpa-onnx com a voz "dii"
+ * roda no próprio celular. Se ele não estiver instalado, usa a voz padrão do Android e a tela
+ * mostra como instalar.
  */
 class Speaker(context: Context) {
 
     private val system = SystemVoice(context)
-    private val studio = BuildConfig.VOICESTUDIO_URL.takeIf { it.isNotBlank() }?.let {
-        VoiceStudioVoice(context.applicationContext, it, BuildConfig.VOICESTUDIO_MODEL, BuildConfig.VOICESTUDIO_VOICE)
-    }
-    private var studioDownUntil = 0L
+
+    /** False = a voz da IANA ainda não foi instalada (está usando a voz padrão do celular). */
+    val hasIanaVoice: Boolean get() = system.hasIanaVoice
 
     /** Fala e retorna quando terminar. False = não há voz disponível. */
-    suspend fun speak(text: String): Boolean {
-        if (studio != null && SystemClock.elapsedRealtime() >= studioDownUntil) {
-            try {
-                studio.speak(text)
-                return true
-            } catch (e: IOException) {
-                studioDownUntil = SystemClock.elapsedRealtime() + STUDIO_RETRY_MS
-            }
-        }
-        return system.speak(text)
-    }
+    suspend fun speak(text: String): Boolean = system.speak(text)
 
-    /** "VoiceStudio" ou o nome do motor do celular. */
-    val description: String
-        get() = if (studio != null && SystemClock.elapsedRealtime() >= studioDownUntil) {
-            "VoiceStudio"
-        } else {
-            system.engineName.orEmpty()
-        }
+    fun stop() = system.stop()
 
-    fun stop() {
-        studio?.stop()
-        system.stop()
-    }
+    fun shutdown() = system.shutdown()
 
-    fun shutdown() {
-        studio?.stop()
-        system.shutdown()
-    }
-
-    private companion object {
-        const val STUDIO_RETRY_MS = 5 * 60 * 1000L
+    companion object {
+        /** Página com os APKs do motor de voz (procure o "pt_BR-dii-high", arm64-v8a). */
+        const val VOICE_DOWNLOAD_URL = "https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html"
     }
 }

@@ -23,7 +23,7 @@ Você fala, ela entende, executa e responde em voz alta.
 | *“marca dentista sexta às 10h”* · *“me lembra de ligar pro contador dia 15 às 3 da tarde”* | Cria o evento na agenda (sincroniza com o Google Agenda) |
 | *“que horas são?”* · *“que dia é hoje?”* · *“ajuda”* | O básico |
 
-> 💡 Também dá pra digitar o comando na caixa de texto, o que é útil no emulador.
+> 💡 Toque no painel pra falar. Antes do primeiro pedido aparecem atalhos tocáveis, úteis no emulador.
 
 **Mãos livres:** ligue *Ouvir “IANA”* no topo do app. Depois é só dizer **“IANA”**: ela apita, ouve o pedido e responde falando, mesmo com o app fechado e a tela bloqueada.
 
@@ -57,34 +57,13 @@ Se a IANA disparar à toa ou não ouvir, ajuste `SENSITIVITY` em `WakeWordServic
 </details>
 
 <details>
-<summary><b>🎙️ Voz feminina, open source e grátis</b></summary>
+<summary><b>🎙️ Instalando a voz da IANA (feminina, grátis e offline)</b></summary>
 
-A IANA escolhe a voz sozinha, nesta ordem:
+A IANA fala com a voz **“dii”**, uma voz feminina em português do Brasil do projeto open source [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache 2.0). Ela roda **no próprio celular**, então é a mesma voz com ou sem internet e não depende de computador ligado.
 
-1. **VoiceStudio no seu computador**, se configurado e ligado. É a voz com mais qualidade.
-2. **Voz offline no celular.** Se houver um motor do sherpa-onnx instalado, ela usa ele; senão, usa a voz padrão do Android.
-
-**Voz offline no celular (recomendado)**
-
-O [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) é open source (Apache 2.0) e tem um app de voz que roda no próprio celular, sem internet.
-
-1. Abra a [lista de APKs de voz](https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html) no celular.
-2. Baixe a versão mais recente terminada em **`arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high.apk`**. A “dii” é uma voz feminina em português do Brasil.
-3. Instale e abra o app uma vez. A IANA detecta o motor sozinha, e a tela mostra qual voz está em uso.
-
-**VoiceStudio no computador (opcional)**
-
-O [VoiceStudio](https://voicestudio.sh/pt-BR/) é open source (AGPL) e grátis. Ele roda no computador e expõe uma API compatível com a da OpenAI. O celular precisa estar no mesmo Wi-Fi.
-
-1. Instale e abra o VoiceStudio. A API fica em `http://localhost:3900/v1`.
-2. Descubra o IP do computador na rede (ex.: `192.168.0.10`) e coloque no `local.properties`:
-   ```properties
-   voicestudio.url=http://192.168.0.10:3900
-   voicestudio.model=kokoro
-   voicestudio.voice=pf_dora
-   ```
-   `pf_dora` é a voz feminina pt-BR do Kokoro. Confira os nomes de modelo e voz disponíveis na sua instalação em `http://localhost:3900/v1/models`.
-3. Se o computador estiver desligado, a IANA usa a voz do celular e só tenta o VoiceStudio de novo depois de 5 minutos.
+1. No app, toque em **Baixar voz** (o aviso aparece enquanto a voz não está instalada), ou abra a [lista de APKs de voz](https://k2-fsa.github.io/sherpa/onnx/tts/apk-engine.html).
+2. Baixe a versão mais recente terminada em **`arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high.apk`**.
+3. Instale, abra o app de voz uma vez e volte pra IANA. Ela passa a usar essa voz automaticamente.
 
 **Reconhecimento de voz offline:** *Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline* › baixe **Português (Brasil)**.
 
@@ -113,10 +92,10 @@ app/src/main/java/com/davipeter/iana/
 ├── data/
 │   ├── news/      Google Notícias via RSS (sem chave de API)
 │   └── calendar/  agenda do celular (CalendarContract)
-├── voice/       ouvir (SpeechListener) e falar (Speaker: VoiceStudio ou voz do celular)
+├── voice/       ouvir (SpeechListener) e falar (Speaker, voz “dii” no celular)
 ├── wakeword/    escuta da palavra “IANA” em segundo plano
 ├── widget/      widget da tela inicial (Jetpack Glance + WorkManager)
-├── ui/          tela em Jetpack Compose (VoiceOrb é a bola animada)
+├── ui/          tela em Jetpack Compose (JarvisHud é o painel animado)
 └── IanaApp.kt   monta as dependências
 ```
 
@@ -140,4 +119,4 @@ O parser, o roteador, o leitor de RSS e os dados do widget têm testes de unidad
 
 ---
 
-<sub>Fontes: [Bricolage Grotesque](https://fonts.google.com/specimen/Bricolage+Grotesque) e [Onest](https://fonts.google.com/specimen/Onest), sob a SIL Open Font License (veja `licenses/`).</sub>
+<sub>Visual com a paleta da SyncForge e a fonte [DM Sans](https://fonts.google.com/specimen/DM+Sans) (SIL Open Font License, veja `licenses/`).</sub>

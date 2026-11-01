@@ -1,39 +1,37 @@
 package com.davipeter.iana.ui
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -46,26 +44,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.davipeter.iana.R
-import com.davipeter.iana.assistant.Detail
 import com.davipeter.iana.assistant.Permission
 import com.davipeter.iana.assistant.PtBr
+import com.davipeter.iana.assistant.Reply
 import com.davipeter.iana.ui.theme.Iana
+import com.davipeter.iana.voice.Speaker
 import com.davipeter.iana.wakeword.WakeWordService
 import java.time.LocalDateTime
 
-/** Pedidos de exemplo mostrados quando a conversa está vazia. Tocar = pedir. */
-private val SUGGESTIONS = listOf("Notícias", "Minha agenda de hoje", "Qual meu próximo compromisso?", "Que horas são?")
+/** Atalhos mostrados antes do primeiro pedido. Tocar = pedir. */
+private val SHORTCUTS = listOf("Notícias", "Minha agenda de hoje", "Próximo compromisso", "Que horas são?")
 
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
@@ -124,41 +118,69 @@ fun HomeScreen(viewModel: MainViewModel) {
         }
     }
 
-    Surface(Modifier.fillMaxSize(), color = Iana.Noite) {
-        Column(Modifier.safeDrawingPadding().imePadding()) {
+    Surface(Modifier.fillMaxSize(), color = Iana.Fundo) {
+        Column(
+            Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             TopBar(wakeRunning, onWakeToggle)
-            (setupProblem ?: wakeError)?.let { problem ->
-                Text(
-                    problem,
-                    color = Iana.Coral,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
-                )
+            (setupProblem ?: wakeError)?.let { Notice(it) }
+            if (!viewModel.hasIanaVoice) {
+                InstallVoice {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Speaker.VOICE_DOWNLOAD_URL)))
+                }
             }
-            Conversation(state.history, onSuggestion = viewModel::onTyped, modifier = Modifier.weight(1f))
-            VoiceOrb(
+
+            Greeting(Modifier.fillMaxWidth().padding(top = 28.dp))
+
+            JarvisHud(
                 phase = state.phase,
                 level = level,
                 onClick = onMic,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 380.dp).padding(vertical = 20.dp),
             )
-            Status(state, viewModel.voiceName)
-            TypeBox(onSend = viewModel::onTyped)
+
+            PhaseLabel(state.phase, state.error)
+            Spacer(Modifier.height(16.dp))
+
+            // Só o momento atual: o que está ouvindo agora ou a última resposta.
+            val shown = when {
+                state.phase == Phase.Listening || state.phase == Phase.Thinking -> Shown.Heard(state.partial)
+                state.history.isNotEmpty() -> Shown.Answer(state.history.last().reply)
+                else -> Shown.Idle
+            }
+            AnimatedContent(shown, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "shown") { s ->
+                when (s) {
+                    is Shown.Heard -> Text(
+                        s.text.ifEmpty { "…" },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Iana.Rotulo,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    is Shown.Answer -> Answer(s.reply)
+                    Shown.Idle -> Shortcuts(onPick = viewModel::onTyped)
+                }
+            }
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
 
+private sealed interface Shown {
+    data class Heard(val text: String) : Shown
+    data class Answer(val reply: Reply) : Shown
+    data object Idle : Shown
+}
+
 @Composable
 private fun TopBar(wakeRunning: Boolean, onWakeToggle: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(start = 24.dp, end = 16.dp, top = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text("IANA", style = MaterialTheme.typography.titleLarge, color = Iana.Lua, modifier = Modifier.weight(1f))
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("IANA", style = MaterialTheme.typography.titleLarge, color = Iana.Texto, modifier = Modifier.weight(1f))
         // A pílula inteira é tocável, não só a chave.
         Row(
             Modifier
-                .border(1.dp, Iana.Linha, CircleShape)
+                .border(1.dp, Iana.Borda, CircleShape)
                 .clickable(role = Role.Switch) { onWakeToggle(!wakeRunning) }
                 .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -166,18 +188,18 @@ private fun TopBar(wakeRunning: Boolean, onWakeToggle: (Boolean) -> Unit) {
             Text(
                 "Ouvir “IANA”",
                 style = MaterialTheme.typography.labelLarge,
-                color = if (wakeRunning) Iana.Lua else Iana.Nevoa,
+                color = if (wakeRunning) Iana.Texto else Iana.Corpo,
             )
             Spacer(Modifier.width(10.dp))
             Switch(
                 checked = wakeRunning,
                 onCheckedChange = null,
                 colors = SwitchDefaults.colors(
-                    checkedTrackColor = Iana.Ambar,
-                    checkedThumbColor = Iana.Noite,
-                    uncheckedTrackColor = Iana.Veludo,
-                    uncheckedThumbColor = Iana.Nevoa,
-                    uncheckedBorderColor = Iana.Linha,
+                    checkedTrackColor = Iana.AzulVivo,
+                    checkedThumbColor = Iana.Texto,
+                    uncheckedTrackColor = Iana.Painel,
+                    uncheckedThumbColor = Iana.Rotulo,
+                    uncheckedBorderColor = Iana.Borda,
                 ),
             )
         }
@@ -185,144 +207,129 @@ private fun TopBar(wakeRunning: Boolean, onWakeToggle: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun Conversation(history: List<Exchange>, onSuggestion: (String) -> Unit, modifier: Modifier) {
-    val listState = rememberLazyListState()
-    LaunchedEffect(history.size) {
-        if (history.isNotEmpty()) listState.animateScrollToItem(history.size) // o item 0 é a saudação
-    }
-    LazyColumn(
-        modifier.fillMaxWidth(),
-        state = listState,
-        contentPadding = PaddingValues(start = 24.dp, end = 24.dp, top = 28.dp, bottom = 16.dp),
+private fun Notice(text: String) {
+    Text(
+        text,
+        color = Iana.Erro,
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+    )
+}
+
+/** Aparece enquanto a voz feminina da IANA não estiver instalada. */
+@Composable
+private fun InstallVoice(onInstall: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp)
+            .background(Iana.Painel, RoundedCornerShape(16.dp))
+            .border(1.dp, Iana.Borda, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        item(key = "greeting") { Greeting() }
-        if (history.isEmpty()) {
-            item(key = "suggestions") { Suggestions(onSuggestion) }
+        Column(Modifier.weight(1f)) {
+            Text("Instale a voz da IANA", style = MaterialTheme.typography.labelLarge, color = Iana.Texto)
+            Text(
+                "Voz feminina que funciona sem internet. Por enquanto ela usa a voz padrão do celular.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Iana.Corpo,
+            )
         }
-        items(history, key = { it.id }) { exchange ->
-            Column(Modifier.padding(top = 28.dp)) {
-                Text(exchange.said, style = MaterialTheme.typography.labelLarge, color = Iana.Lilas)
-                Spacer(Modifier.height(6.dp))
-                Text(exchange.reply.speech, style = MaterialTheme.typography.headlineSmall, color = Iana.Lua)
-                if (exchange.reply.details.isNotEmpty()) {
-                    Details(exchange.reply.details, Modifier.padding(top = 12.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(
+            "Baixar voz",
+            style = MaterialTheme.typography.labelLarge,
+            color = Iana.Texto,
+            modifier = Modifier
+                .background(Iana.AzulVivo, RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button, onClick = onInstall)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+        )
+    }
+}
+
+@Composable
+private fun Greeting(modifier: Modifier) {
+    val now = LocalDateTime.now()
+    val hello = when (now.hour) {
+        in 5..11 -> "Bom dia"
+        in 12..17 -> "Boa tarde"
+        else -> "Boa noite"
+    }
+    Column(modifier) {
+        Text(hello, style = MaterialTheme.typography.headlineMedium, color = Iana.Texto)
+        Text(
+            PtBr.fullDate(now.toLocalDate(), now.toLocalDate()).replaceFirstChar { it.uppercase() },
+            style = MaterialTheme.typography.bodyMedium,
+            color = Iana.Corpo,
+        )
+    }
+}
+
+/** O estado atual, logo abaixo do painel. */
+@Composable
+private fun PhaseLabel(phase: Phase, error: String?) {
+    val (text, color) = when {
+        error != null -> error to Iana.Erro
+        phase == Phase.Listening -> "Ouvindo" to Iana.Texto
+        phase == Phase.Thinking -> "Processando" to Iana.Rotulo
+        phase == Phase.Speaking -> "Falando. Toque para interromper" to Iana.Rotulo
+        else -> "Toque no painel ou diga “IANA”" to Iana.Rotulo
+    }
+    Text(text, style = MaterialTheme.typography.labelLarge, color = color, textAlign = TextAlign.Center)
+}
+
+/** A última resposta, com manchetes ou eventos num painel. */
+@Composable
+private fun Answer(reply: Reply) {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            reply.speech,
+            style = MaterialTheme.typography.titleMedium,
+            color = Iana.Texto,
+            textAlign = TextAlign.Center,
+            maxLines = 5,
+        )
+        if (reply.details.isNotEmpty()) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp)
+                    .background(Iana.Painel, RoundedCornerShape(20.dp))
+                    .border(1.dp, Iana.Borda, RoundedCornerShape(20.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                reply.details.forEach { d ->
+                    Column {
+                        Text(d.text, style = MaterialTheme.typography.bodyMedium, color = Iana.Texto)
+                        d.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Iana.Rotulo) }
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-private fun Greeting() {
-    val now = LocalDateTime.now()
-    val hello = when (now.hour) {
-        in 5..11 -> "Bom dia."
-        in 12..17 -> "Boa tarde."
-        else -> "Boa noite."
-    }
-    Column {
-        Text(hello, style = MaterialTheme.typography.displayMedium, color = Iana.Lua)
-        Spacer(Modifier.height(8.dp))
-        Text(
-            PtBr.fullDate(now.toLocalDate(), now.toLocalDate()).replaceFirstChar { it.uppercase() },
-            style = MaterialTheme.typography.bodyMedium,
-            color = Iana.Nevoa,
-        )
-    }
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Suggestions(onSuggestion: (String) -> Unit) {
-    Column(Modifier.padding(top = 36.dp)) {
-        Text("Toque na bola ou diga algo como:", style = MaterialTheme.typography.bodyMedium, color = Iana.Nevoa)
-        Spacer(Modifier.height(12.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            SUGGESTIONS.forEach { text ->
-                Text(
-                    text,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Iana.Lua,
-                    modifier = Modifier
-                        .border(1.dp, Iana.Linha, RoundedCornerShape(12.dp))
-                        .clickable(role = Role.Button) { onSuggestion(text) }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                )
-            }
-        }
-    }
-}
-
-/** Manchetes, eventos etc.: uma linha âmbar à esquerda amarra a lista à resposta. */
-@Composable
-private fun Details(details: List<Detail>, modifier: Modifier = Modifier) {
-    Column(
-        modifier.drawBehind {
-            drawLine(Iana.Ambar, Offset(0f, 4.dp.toPx()), Offset(0f, size.height - 4.dp.toPx()), strokeWidth = 2.dp.toPx())
-        }.padding(start = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+private fun Shortcuts(onPick: (String) -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        details.forEach { d ->
-            Column {
-                Text(d.text, style = MaterialTheme.typography.bodyMedium, color = Iana.Lua)
-                d.note?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = Iana.Nevoa) }
-            }
+        SHORTCUTS.forEach { text ->
+            Text(
+                text,
+                style = MaterialTheme.typography.labelLarge,
+                color = Iana.Corpo,
+                modifier = Modifier
+                    .border(1.dp, Iana.Borda, RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button) { onPick(text) }
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            )
         }
     }
-}
-
-@Composable
-private fun Status(state: UiState, voiceName: String) {
-    val (text, color) = when {
-        state.error != null -> state.error.orEmpty() to Iana.Coral
-        state.phase == Phase.Listening -> state.partial.ifEmpty { "Pode falar." } to Iana.Lua
-        state.phase == Phase.Thinking -> "Um instante…" to Iana.Nevoa
-        state.phase == Phase.Speaking -> "Toque na bola para interromper" to Iana.Nevoa
-        else -> (if (voiceName.isNotBlank()) "Voz: $voiceName" else "") to Iana.Nevoa
-    }
-    Text(
-        text,
-        color = color,
-        style = MaterialTheme.typography.bodyMedium,
-        textAlign = TextAlign.Center,
-        maxLines = 2,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 6.dp),
-    )
-}
-
-@Composable
-private fun TypeBox(onSend: (String) -> Unit) {
-    var text by rememberSaveable { mutableStateOf("") }
-    val send = {
-        onSend(text)
-        text = ""
-    }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
-        placeholder = { Text("Ou escreva um pedido", color = Iana.Nevoa) },
-        singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge,
-        shape = RoundedCornerShape(16.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Iana.Ambar,
-            unfocusedBorderColor = Iana.Linha,
-            cursorColor = Iana.Ambar,
-            focusedTextColor = Iana.Lua,
-            unfocusedTextColor = Iana.Lua,
-        ),
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-        keyboardActions = KeyboardActions(onSend = { send() }),
-        trailingIcon = {
-            IconButton(onClick = send, enabled = text.isNotBlank()) {
-                Icon(
-                    painterResource(R.drawable.ic_send),
-                    contentDescription = "Enviar",
-                    tint = if (text.isNotBlank()) Iana.Ambar else Iana.Nevoa,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        },
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
-    )
 }
