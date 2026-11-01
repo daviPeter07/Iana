@@ -11,27 +11,30 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 
+/** Um motor de voz instalado no celular (Google, sherpa-onnx "dii", Supertonic...). */
+data class VoiceEngine(val packageName: String, val label: String) {
+    /** Motores do sherpa-onnx: as vozes open source e offline. */
+    val isOpenSource: Boolean get() = packageName.contains("sherpa", ignoreCase = true)
+
+    companion object {
+        fun installed(context: Context): List<VoiceEngine> {
+            val pm = context.packageManager
+            return pm.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0)
+                .map { it.serviceInfo }
+                .distinctBy { it.packageName }
+                .map { VoiceEngine(it.packageName, it.loadLabel(pm).toString()) }
+        }
+    }
+}
+
 /**
- * Voz do próprio celular (offline): o TextToSpeech do Android em português do Brasil.
- *
- * A voz da IANA é a "dii" (feminina, pt-BR) do sherpa-onnx, instalada como motor de voz do
- * Android. Ela roda no celular, então é a mesma com ou sem internet. Sem ela, cai no motor padrão.
+ * Fala usando um motor de voz do Android ([engine]; nulo = o padrão do celular), em pt-BR.
+ * Roda no celular, então funciona sem internet quando o motor é offline (caso do sherpa-onnx).
  */
-class SystemVoice(context: Context) {
+class SystemVoice(context: Context, engine: String?) {
 
     private val initStatus = CompletableDeferred<Int>()
-    private val enginePackage = preferredEngine(context)
-    private val tts = TextToSpeech(context.applicationContext, { status -> initStatus.complete(status) }, enginePackage)
-
-    /** True se a voz da IANA (motor sherpa-onnx) está instalada. */
-    val hasIanaVoice: Boolean = enginePackage != null
-
-    /** Nome do motor em uso (ex.: "Speech Services by Google", "sherpa-onnx TTS Engine"), para mostrar na tela. */
-    val engineName: String? = runCatching {
-        val pm = context.packageManager
-        val pkg = enginePackage ?: tts.defaultEngine
-        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-    }.getOrNull()
+    private val tts = TextToSpeech(context.applicationContext, { status -> initStatus.complete(status) }, engine)
     private val pending = ConcurrentHashMap<String, () -> Unit>()
     private var configured = false
 
@@ -54,7 +57,11 @@ class SystemVoice(context: Context) {
         if (initStatus.await() != TextToSpeech.SUCCESS) return false
         if (!configured) {
             val lang = tts.setLanguage(Locale.forLanguageTag("pt-BR"))
-            if (lang == TextToSpeech.LANG_MISSING_DATA || lang == TextToSpeech.LANG_NOT_SUPPORTED) return false
+            if (lang == TextToSpeech.LANG_MISSING_DATA || lang == TextToSpeech.LANG_NOT_SUPPORTED) {
+                // Alguns motores (ex.: Supertonic) registram só "pt", sem o país.
+                val generic = tts.setLanguage(Locale.forLanguageTag("pt"))
+                if (generic == TextToSpeech.LANG_MISSING_DATA || generic == TextToSpeech.LANG_NOT_SUPPORTED) return false
+            }
             tts.setOnUtteranceProgressListener(progress)
             pickOfflineVoice()
             configured = true
@@ -74,7 +81,7 @@ class SystemVoice(context: Context) {
     /** No motor do Google, prefere uma voz pt-BR que não dependa de internet. */
     private fun pickOfflineVoice() {
         val voices = runCatching { tts.voices }.getOrNull() ?: return
-        voices.filter { it.locale.toLanguageTag().equals("pt-BR", ignoreCase = true) && !it.isNetworkConnectionRequired }
+        voices.filter { it.locale.language == "pt" && !it.isNetworkConnectionRequired }
             .minByOrNull { it.latency }
             ?.let { tts.voice = it }
     }
@@ -85,13 +92,5 @@ class SystemVoice(context: Context) {
 
     fun shutdown() {
         tts.shutdown()
-    }
-
-    private companion object {
-        /** Pacote de um motor sherpa-onnx instalado, se houver. Nulo = motor padrão do celular. */
-        fun preferredEngine(context: Context): String? =
-            context.packageManager.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0)
-                .map { it.serviceInfo.packageName }
-                .firstOrNull { it.contains("sherpa", ignoreCase = true) }
     }
 }

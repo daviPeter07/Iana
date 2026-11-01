@@ -20,7 +20,6 @@ import com.davipeter.iana.R
 import com.davipeter.iana.ui.MainActivity
 import com.davipeter.iana.voice.SpeechListener
 import com.davipeter.iana.voice.Speaker
-import com.davipeter.iana.widget.WidgetUpdateWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -171,7 +170,6 @@ class WakeWordService : Service() {
                         reply.speech
                     }
                     speaker.speak(speech)
-                    if (reply.changedCalendar) WidgetUpdateWorker.refreshNow(applicationContext)
                 }
             } finally {
                 if (!pausedByApp) runCatching { startDetector() }

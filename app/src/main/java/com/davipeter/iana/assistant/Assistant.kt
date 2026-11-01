@@ -75,7 +75,7 @@ class Assistant(
                     Detail("Que horas são?"),
                 ),
             )
-            Command.Greeting -> Reply("${greeting(now)}! Em que posso ajudar?")
+            Command.Greeting -> Reply("${greeting(now)}, ${Motivation.NAME}! ${Motivation.phraseFor(now)}")
             is Command.Unknown ->
                 if (command.text.isBlank()) {
                     Reply("Não ouvi nada. Pode repetir?")

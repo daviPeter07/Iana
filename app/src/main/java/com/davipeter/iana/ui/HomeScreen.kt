@@ -55,6 +55,16 @@ import com.davipeter.iana.assistant.PtBr
 import com.davipeter.iana.assistant.Reply
 import com.davipeter.iana.ui.theme.Iana
 import com.davipeter.iana.voice.Speaker
+import com.davipeter.iana.voice.VoiceEngine
+import com.davipeter.iana.assistant.Motivation
+import com.davipeter.iana.R
+import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.res.painterResource
 import com.davipeter.iana.wakeword.WakeWordService
 import java.time.LocalDateTime
 
@@ -157,8 +167,27 @@ fun HomeScreen(viewModel: MainViewModel) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                     is Shown.Answer -> Answer(s.reply)
-                    Shown.Idle -> Shortcuts(onPick = viewModel::onTyped)
+                    Shown.Idle -> Unit
                 }
+            }
+
+            // Os atalhos voltam sempre que ela termina de responder.
+            if (state.phase == Phase.Idle) {
+                Shortcuts(onPick = viewModel::onTyped, modifier = Modifier.padding(top = if (shown == Shown.Idle) 0.dp else 20.dp))
+            }
+
+            var choosingVoice by rememberSaveable { mutableStateOf(false) }
+            VoiceChip(viewModel.currentVoice, onClick = { choosingVoice = true })
+            if (choosingVoice) {
+                VoicePicker(
+                    engines = viewModel.voiceEngines,
+                    current = viewModel.currentVoice,
+                    onPick = {
+                        choosingVoice = false
+                        viewModel.chooseVoice(it)
+                    },
+                    onDismiss = { choosingVoice = false },
+                )
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -174,6 +203,13 @@ private sealed interface Shown {
 @Composable
 private fun TopBar(wakeRunning: Boolean, onWakeToggle: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(
+            painterResource(R.drawable.ic_logo),
+            contentDescription = null,
+            tint = Iana.AzulVivo,
+            modifier = Modifier.size(26.dp),
+        )
+        Spacer(Modifier.width(10.dp))
         Text("IANA", style = MaterialTheme.typography.titleLarge, color = Iana.Texto, modifier = Modifier.weight(1f))
         // A pílula inteira é tocável, não só a chave.
         Row(
@@ -257,12 +293,15 @@ private fun Greeting(modifier: Modifier) {
         else -> "Boa noite"
     }
     Column(modifier) {
-        Text(hello, style = MaterialTheme.typography.headlineMedium, color = Iana.Texto)
         Text(
             PtBr.fullDate(now.toLocalDate(), now.toLocalDate()).replaceFirstChar { it.uppercase() },
             style = MaterialTheme.typography.bodyMedium,
-            color = Iana.Corpo,
+            color = Iana.Rotulo,
         )
+        Spacer(Modifier.height(4.dp))
+        Text("$hello, ${Motivation.NAME}", style = MaterialTheme.typography.headlineMedium, color = Iana.Texto)
+        Spacer(Modifier.height(6.dp))
+        Text(Motivation.phraseFor(now), style = MaterialTheme.typography.titleMedium, color = Iana.Corpo)
     }
 }
 
@@ -313,9 +352,9 @@ private fun Answer(reply: Reply) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Shortcuts(onPick: (String) -> Unit) {
+private fun Shortcuts(onPick: (String) -> Unit, modifier: Modifier = Modifier) {
     FlowRow(
-        Modifier.fillMaxWidth(),
+        modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -331,4 +370,67 @@ private fun Shortcuts(onPick: (String) -> Unit) {
             )
         }
     }
+}
+
+/** Mostra qual voz está em uso; tocar abre a escolha de voz. */
+@Composable
+private fun VoiceChip(current: VoiceEngine?, onClick: () -> Unit) {
+    Text(
+        "Voz: ${current?.label ?: "padrão do celular"}. Toque para trocar",
+        style = MaterialTheme.typography.bodySmall,
+        color = Iana.Rotulo,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .padding(top = 28.dp)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(8.dp),
+    )
+}
+
+@Composable
+private fun VoicePicker(
+    engines: List<VoiceEngine>,
+    current: VoiceEngine?,
+    onPick: (VoiceEngine) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Iana.Painel,
+        title = { Text("Escolher voz", color = Iana.Texto) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (engines.isEmpty()) {
+                    Text("Nenhum motor de voz instalado.", color = Iana.Corpo)
+                }
+                engines.forEach { engine ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.RadioButton) { onPick(engine) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = engine.packageName == current?.packageName,
+                            onClick = null,
+                            colors = RadioButtonDefaults.colors(selectedColor = Iana.AzulVivo, unselectedColor = Iana.Rotulo),
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text(engine.label, style = MaterialTheme.typography.bodyLarge, color = Iana.Texto)
+                            Text(
+                                if (engine.isOpenSource) "Open source, funciona sem internet" else engine.packageName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Iana.Rotulo,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Fechar", color = Iana.Rotulo) }
+        },
+    )
 }

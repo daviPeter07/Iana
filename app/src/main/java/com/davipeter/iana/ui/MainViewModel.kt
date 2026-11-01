@@ -9,8 +9,9 @@ import com.davipeter.iana.assistant.Reply
 import com.davipeter.iana.voice.SpeechException
 import com.davipeter.iana.voice.SpeechListener
 import com.davipeter.iana.voice.Speaker
+import com.davipeter.iana.voice.VoiceEngine
+import com.davipeter.iana.assistant.Motivation
 import com.davipeter.iana.wakeword.WakeWordService
-import com.davipeter.iana.widget.WidgetUpdateWorker
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -48,6 +49,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** False = a voz feminina da IANA ainda não foi instalada. */
     val hasIanaVoice: Boolean get() = speaker.hasIanaVoice
+
+    /** Motores de voz instalados e o que está em uso, para a escolha de voz. */
+    val voiceEngines: List<VoiceEngine> get() = speaker.engines
+    val currentVoice: VoiceEngine? get() = speaker.current
+
+    /** Troca a voz e faz ela se apresentar, pra você ouvir na hora. */
+    fun chooseVoice(engine: VoiceEngine) {
+        job?.cancel()
+        speaker.choose(engine)
+        job = viewModelScope.launch {
+            _state.update { it.copy(phase = Phase.Speaking) }
+            speaker.speak("Oi, ${Motivation.NAME}. Esta é a minha voz agora.")
+            _state.update { it.copy(phase = Phase.Idle) }
+        }
+    }
 
     private var job: Job? = null
     private var nextId = 0L
@@ -120,7 +136,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun respond(text: String) {
         _state.update { it.copy(phase = Phase.Thinking, partial = text, error = null) }
         val reply = assistant.handle(text)
-        if (reply.changedCalendar) WidgetUpdateWorker.refreshNow(getApplication())
         _state.update {
             it.copy(
                 phase = Phase.Speaking,

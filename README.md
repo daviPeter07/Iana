@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="branding/logo.svg" width="72" alt="Logo">
+
 # IANA
 
 **Assistente pessoal por voz para Android, no estilo Jarvis.**
@@ -27,7 +29,11 @@ Você fala, ela entende, executa e responde em voz alta.
 
 **Mãos livres:** ligue *Ouvir “IANA”* no topo do app. Depois é só dizer **“IANA”**: ela apita, ouve o pedido e responde falando, mesmo com o app fechado e a tela bloqueada.
 
-**Widget:** segure na tela inicial › *Widgets* › **IANA**. Ele mostra o próximo compromisso e 3 manchetes, se atualiza a cada 30 minutos e tem um botão de microfone pra falar com ela.
+**Widget:** segure na tela inicial › *Widgets* › **IANA**. Ele mostra a frase motivacional do momento e um botão de microfone pra falar com ela.
+
+**Frases pro Davi:** a tela inicial e o widget mostram uma frase motivacional que troca a cada 3 horas. Pra editar, mude a lista em `assistant/Motivation.kt`.
+
+**Logo:** a logo da SyncForge está em `branding/logo.svg` e, no app, em `res/drawable/ic_logo.xml`. Pra usar outra, gere um vetor a partir do seu SVG no Android Studio (*File › New › Vector Asset › Local file*) e substitua o `ic_logo.xml`.
 
 ## 🚀 Rodando no celular
 
@@ -57,6 +63,8 @@ A IANA fala com a voz **“dii”**, uma voz feminina em português do Brasil do
 2. Baixe o link destacado: `sherpa-onnx-<versão>-arm64-v8a-pt-tts-engine-vits-piper-pt_BR-dii-high.apk`. Se não aparecer destacado, use *Localizar na página* e busque `pt_BR-dii-high`. Escolha o que tem `arm64-v8a` e a versão mais alta.
 3. Instale, abra o app de voz uma vez e volte pra IANA. Ela passa a usar essa voz automaticamente.
 
+**Trocar de voz:** toque em *Voz: … Toque para trocar*, no fim da tela, pra escolher entre as vozes instaladas. Ela fala uma frase na hora pra você ouvir. Pra testar o **Supertonic 3**, um modelo mais novo com várias vozes, busque `supertonic-3` na mesma página e baixe o de `arm64-v8a` com `pt` no nome. Como os APKs do sherpa-onnx podem substituir um ao outro, teste um de cada vez.
+
 **Reconhecimento de voz offline:** *Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline* › baixe **Português (Brasil)**.
 
 </details>
@@ -80,13 +88,14 @@ app/src/main/java/com/davipeter/iana/
 │   ├── CommandParser.kt   frase → comando
 │   ├── DateTimeParser.kt  "sexta às 3 da tarde" → data/hora
 │   ├── Assistant.kt       executa o comando e monta a resposta
-│   └── PtBr.kt            datas e horas faladas em português
+│   ├── PtBr.kt            datas e horas faladas em português
+│   └── Motivation.kt      frases motivacionais
 ├── data/
 │   ├── news/      Google Notícias via RSS (sem chave de API)
 │   └── calendar/  agenda do celular (CalendarContract)
 ├── voice/       ouvir (SpeechListener) e falar (Speaker, voz “dii” no celular)
 ├── wakeword/    escuta da palavra “IANA” em segundo plano
-├── widget/      widget da tela inicial (Jetpack Glance + WorkManager)
+├── widget/      widget da tela inicial (frase + botão de falar)
 ├── ui/          tela em Jetpack Compose (JarvisHud é o painel animado)
 └── IanaApp.kt   monta as dependências
 ```
@@ -95,7 +104,7 @@ A interpretação fica atrás da interface `Brain`. Hoje ela usa regras (`RuleBa
 
 ## 🧪 Testes
 
-O parser, o roteador, o leitor de RSS e os dados do widget têm testes de unidade que rodam na JVM, sem emulador:
+O parser, o roteador, o leitor de RSS e as frases têm testes de unidade que rodam na JVM, sem emulador:
 
 ```bash
 ./gradlew test
@@ -105,7 +114,7 @@ O parser, o roteador, o leitor de RSS e os dados do widget têm testes de unidad
 
 - [x] Comando de voz com resposta falada
 - [x] Notícias e agenda
-- [x] Widget com manchetes, próximo compromisso e botão de falar
+- [x] Widget com frase motivacional e botão de falar
 - [x] Palavra de ativação “IANA” em segundo plano
 - [ ] Resumo falado da manhã (notícias, agenda e DMs pendentes)
 
