@@ -1,60 +1,87 @@
+<div align="center">
+
 # IANA
 
-Assistente pessoal estilo Jarvis para Android, em Kotlin. Você fala, ela entende, executa e responde em voz alta.
+**Assistente pessoal por voz para Android, no estilo Jarvis.**
+Você fala, ela entende, executa e responde em voz alta.
 
-## O que já funciona
+![Android](https://img.shields.io/badge/Android-10%2B-3DDC84?logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.3-7F52FF?logo=kotlin&logoColor=white)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-UI-4285F4?logo=jetpackcompose&logoColor=white)
 
-| Comando (exemplos) | O que faz |
+</div>
+
+---
+
+## ✨ O que ela faz
+
+| Peça assim | O que acontece |
 |---|---|
-| “notícias”, “notícias sobre futebol”, “manchetes do Flamengo” | Lê as 5 principais manchetes do Google Notícias (RSS, grátis e sem chave de API) |
-| “minha agenda”, “agenda de amanhã”, “tenho algo na sexta?”, “agenda da semana” | Lê seus compromissos da agenda do celular |
-| “qual meu próximo compromisso?” | Diz o próximo evento |
-| “marca dentista sexta às 10h”, “me lembra de ligar pro contador dia 15 às 3 da tarde”, “marca almoço 3 de dezembro ao meio-dia por uma hora e meia” | Cria o evento na sua agenda (sincroniza com o Google Agenda) |
-| “que horas são?”, “que dia é hoje?”, “ajuda” | O básico |
+| *“notícias”* · *“notícias sobre futebol”* | Lê as 5 principais manchetes do Google Notícias |
+| *“minha agenda de amanhã”* · *“tenho algo na sexta?”* · *“agenda da semana”* | Lê seus compromissos |
+| *“qual meu próximo compromisso?”* | Diz o próximo evento |
+| *“marca dentista sexta às 10h”* · *“me lembra de ligar pro contador dia 15 às 3 da tarde”* | Cria o evento na agenda (sincroniza com o Google Agenda) |
+| *“que horas são?”* · *“que dia é hoje?”* · *“ajuda”* | O básico |
 
-Também dá para digitar o comando na caixa de texto, o que é útil no emulador.
+> 💡 Também dá pra digitar o comando na caixa de texto, o que é útil no emulador.
 
-## Como rodar no celular
+## 🚀 Rodando no celular
 
-1. Instale o [Android Studio](https://developer.android.com/studio) e abra esta pasta.
-2. No celular, ative **Opções do desenvolvedor**: Configurações › Sobre o telefone › toque 7 vezes em “Número da versão”. Depois ative **Depuração USB**.
-3. Conecte o celular no USB, escolha-o na barra do Android Studio e clique em **Run ▶**.
+1. Abra o projeto no [Android Studio](https://developer.android.com/studio).
+2. No celular, ative as **Opções do desenvolvedor**: *Configurações › Sobre o telefone*, toque 7 vezes em *Número da versão*. Depois ative a **Depuração USB**.
+3. Conecte o cabo USB, escolha o aparelho e clique em **Run ▶**.
 
-Requisitos: Android 10 ou mais novo, com o app Google instalado (ele fornece o reconhecimento de voz).
+**Requisitos:** Android 10+ com o app Google instalado (ele fornece o reconhecimento de voz).
 
-Para a voz ficar boa e funcionar sem internet:
-- **Reconhecimento offline:** Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline › baixe **Português (Brasil)**.
-- **Voz da IANA:** Configurações › Acessibilidade › Saída de texto para voz › mecanismo Google › idioma Português (Brasil). Ali dá para escolher outras vozes.
+<details>
+<summary><b>🎙️ Deixando a voz melhor e funcionando offline</b></summary>
 
-## Como o código está organizado
+- **Reconhecimento offline:** *Configurações › Google › Pesquisa, Assistente e voz › Voz › Reconhecimento de fala offline* › baixe **Português (Brasil)**.
+- **Voz da IANA:** *Configurações › Acessibilidade › Saída de texto para voz* › mecanismo Google, idioma **Português (Brasil)**. Ali dá pra escolher outras vozes.
+
+</details>
+
+## 🧠 Como funciona
+
+```mermaid
+flowchart LR
+    A[🎤 Microfone] --> B[SpeechListener]
+    B --> C[Brain<br/><i>entende o comando</i>]
+    C --> D[Assistant<br/><i>executa</i>]
+    D --> E[(Notícias · Agenda)]
+    D --> F[Speaker]
+    F --> G[🔊 Resposta falada]
+```
 
 ```
 app/src/main/java/com/davipeter/iana/
-├── assistant/   ← o "cérebro", Kotlin puro (sem Android)
-│   ├── CommandParser.kt   frase → Command (regras e palavras-chave)
+├── assistant/   o "cérebro", em Kotlin puro (sem Android)
+│   ├── CommandParser.kt   frase → comando
 │   ├── DateTimeParser.kt  "sexta às 3 da tarde" → data/hora
-│   ├── Assistant.kt       roteador: executa o Command e monta a resposta
+│   ├── Assistant.kt       executa o comando e monta a resposta
 │   └── PtBr.kt            datas e horas faladas em português
 ├── data/
-│   ├── news/      Google Notícias via RSS
+│   ├── news/      Google Notícias via RSS (sem chave de API)
 │   └── calendar/  agenda do celular (CalendarContract)
-├── voice/       SpeechListener (ouvir) e Speaker (falar)
-├── ui/          tela em Jetpack Compose + MainViewModel
-└── IanaApp.kt   monta as dependências (sem framework de DI)
+├── voice/       ouvir (SpeechListener) e falar (Speaker)
+├── ui/          tela em Jetpack Compose
+└── IanaApp.kt   monta as dependências
 ```
 
-A interpretação fica atrás da interface `Brain`. Hoje ela é feita por regras (`RuleBasedBrain`). Para usar IA no futuro, basta criar outra implementação de `Brain` e trocá-la em `IanaApp.kt`; os comandos continuam os mesmos.
+A interpretação fica atrás da interface `Brain`. Hoje ela usa regras (`RuleBasedBrain`). Pra usar IA, é só criar outra implementação e trocar em `IanaApp.kt`, sem mexer nos comandos.
 
-## Testes
+## 🧪 Testes
 
-A pasta `assistant/` e a camada de dados têm testes de unidade (JUnit), que rodam na JVM sem emulador:
+O parser, o roteador e o leitor de RSS têm testes de unidade que rodam na JVM, sem emulador:
 
 ```bash
 ./gradlew test
 ```
 
-## Próximos passos
+## 🗺️ Próximos passos
 
-- [ ] **Widget** com as manchetes, o próximo compromisso e um botão “falar com a IANA” (Jetpack Glance)
-- [ ] **Palavra de ativação “Jarvis”** em segundo plano (Porcupine + serviço em primeiro plano)
-- [ ] **Resumo falado da manhã** com notícias, agenda e DMs pendentes (AlarmManager + leitor de notificações)
+- [x] Comando de voz com resposta falada
+- [x] Notícias e agenda
+- [ ] Widget com manchetes, próximo compromisso e botão de falar
+- [ ] Palavra de ativação “Jarvis” em segundo plano
+- [ ] Resumo falado da manhã (notícias, agenda e DMs pendentes)
