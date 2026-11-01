@@ -1,1 +1,5 @@
-# Regras do R8. O app não usa reflexão, então não há regras extras por enquanto.
+# Vosk usa JNA, que acessa classes por reflexão: o R8 não pode renomear nem remover nada delas.
+-keep class com.sun.jna.** { *; }
+-keepclassmembers class * extends com.sun.jna.** { public *; }
+-keep class org.vosk.** { *; }
+-dontwarn java.awt.**

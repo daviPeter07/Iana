@@ -1,15 +1,7 @@
-import java.util.Properties
-
 // AGP 9 já traz o suporte a Kotlin embutido: não é preciso o plugin org.jetbrains.kotlin.android.
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-}
-
-// Segredos locais (fora do git): coloque em local.properties a linha
-// picovoice.accessKey=SUA_CHAVE
-val localProperties = Properties().apply {
-    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
 
 android {
@@ -21,9 +13,7 @@ android {
         minSdk = 29 // Android 10
         targetSdk = 36
         versionCode = 1
-        versionName = "0.2.0"
-
-        buildConfigField("String", "PICOVOICE_ACCESS_KEY", "\"${localProperties.getProperty("picovoice.accessKey", "")}\"")
+        versionName = "0.3.0"
     }
 
     buildTypes {
@@ -42,7 +32,6 @@ android {
 
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 }
 
@@ -57,7 +46,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.glance.appwidget)
     implementation(libs.androidx.work.runtime)
-    implementation(libs.porcupine)
+    // Vosk: reconhecimento de voz offline e open source, usado para ouvir a palavra "IANA".
+    // O JNA precisa vir como AAR (com as bibliotecas nativas do Android), não como JAR.
+    implementation(libs.vosk.android) { exclude(group = "net.java.dev.jna") }
+    implementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

@@ -98,7 +98,7 @@ fun HomeScreen(viewModel: MainViewModel) {
     // Escuta da palavra "IANA" em segundo plano.
     val wakeRunning by WakeWordService.running.collectAsStateWithLifecycle()
     val wakeError by WakeWordService.error.collectAsStateWithLifecycle()
-    var setupProblem by rememberSaveable { mutableStateOf<String?>(null) }
+    val wakeStatus by WakeWordService.status.collectAsStateWithLifecycle()
     val wakePermissions = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         // Só o microfone é obrigatório; sem notificação o serviço roda, mas o aviso fica escondido.
         if (result[Manifest.permission.RECORD_AUDIO] == true) WakeWordService.start(context)
@@ -107,14 +107,11 @@ fun HomeScreen(viewModel: MainViewModel) {
         if (!enable) {
             WakeWordService.stop(context)
         } else {
-            setupProblem = WakeWordService.missingSetup(context)
-            if (setupProblem == null) {
-                val needed = buildList {
-                    add(Manifest.permission.RECORD_AUDIO)
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
-                }
-                wakePermissions.launch(needed.toTypedArray())
+            val needed = buildList {
+                add(Manifest.permission.RECORD_AUDIO)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
             }
+            wakePermissions.launch(needed.toTypedArray())
         }
     }
 
@@ -124,7 +121,8 @@ fun HomeScreen(viewModel: MainViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             TopBar(wakeRunning, onWakeToggle)
-            (setupProblem ?: wakeError)?.let { Notice(it) }
+            wakeError?.let { Notice(it, Iana.Erro) }
+            wakeStatus?.let { Notice(it, Iana.Rotulo) }
             if (!viewModel.hasIanaVoice) {
                 InstallVoice {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Speaker.VOICE_DOWNLOAD_URL)))
@@ -207,10 +205,10 @@ private fun TopBar(wakeRunning: Boolean, onWakeToggle: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun Notice(text: String) {
+private fun Notice(text: String, color: androidx.compose.ui.graphics.Color) {
     Text(
         text,
-        color = Iana.Erro,
+        color = color,
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
     )

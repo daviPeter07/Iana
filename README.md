@@ -38,21 +38,13 @@ Você fala, ela entende, executa e responde em voz alta.
 **Requisitos:** Android 10+ com o app Google instalado (ele fornece o reconhecimento de voz).
 
 <details>
-<summary><b>🗣️ Configurando a palavra “IANA” (uma vez só)</b></summary>
+<summary><b>🗣️ Como funciona a palavra “IANA”</b></summary>
 
-A detecção usa o [Porcupine](https://picovoice.ai/platform/porcupine/), que roda no próprio celular e é grátis para uso pessoal. Você precisa de uma chave e de um arquivo com a palavra treinada:
+A detecção usa o [Vosk](https://alphacephei.com/vosk/), reconhecimento de voz open source (Apache 2.0), sem conta e sem chave. Ele roda no próprio celular.
 
-1. Crie uma conta no [Picovoice Console](https://console.picovoice.ai/) e copie sua **AccessKey**.
-2. Na raiz do projeto, abra (ou crie) o arquivo `local.properties` e adicione:
-   ```properties
-   picovoice.accessKey=SUA_ACCESS_KEY
-   ```
-   Esse arquivo não vai pro git, então a chave fica só no seu computador.
-3. No Console, vá em **Porcupine**, escolha o idioma **Portuguese**, digite **IANA**, treine e baixe para **Android**.
-4. Descompacte, renomeie o `.ppn` para **`iana_pt_android.ppn`** e coloque em `app/src/main/assets/`. O modelo de português (`porcupine_params_pt.pv`) já está lá.
-5. Rode o app de novo e ligue *Ouvir “IANA”*.
-
-Se a IANA disparar à toa ou não ouvir, ajuste `SENSITIVITY` em `WakeWordService.kt`: mais alto ouve mais fácil, mais baixo erra menos.
+- Na primeira vez que você liga *Ouvir “IANA”*, o app baixa o modelo de português do Vosk (cerca de 31 MB) e mostra o progresso. Depois disso funciona offline.
+- O Vosk procura só a palavra “IANA” e grafias parecidas (“Yana”, “Ana”). Por isso a escuta é leve. Se alguém disser “Ana” perto, ela também pode acordar.
+- Pra mudar as palavras, edite `GRAMMAR` e `WAKE` em `WakeWordService.kt`.
 
 </details>
 

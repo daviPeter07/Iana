@@ -1,7 +1,5 @@
 package com.davipeter.iana.wakeword
 
-import ai.picovoice.porcupine.PorcupineException
-import ai.picovoice.porcupine.PorcupineManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -17,7 +15,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
-import com.davipeter.iana.BuildConfig
 import com.davipeter.iana.IanaApp
 import com.davipeter.iana.R
 import com.davipeter.iana.ui.MainActivity
@@ -34,11 +31,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import org.vosk.Model
+import org.vosk.Recognizer
+import org.vosk.android.RecognitionListener
+import org.vosk.android.SpeechService
+import java.io.IOException
 
 /**
- * Fica ouvindo a palavra "IANA" em segundo plano (Porcupine, 100% no aparelho).
- * Quando ouve: apita, escuta o comando, executa e responde falando, sem abrir o app.
+ * Fica ouvindo a palavra "IANA" em segundo plano com o Vosk (open source, offline, sem conta).
+ * Quando ouve: apita, escuta o pedido, executa e responde falando, sem abrir o app.
  *
+ * O Vosk só procura algumas palavras (uma "gramática" pequena), o que deixa a escuta leve.
  * Roda como serviço em primeiro plano do tipo microfone, por isso aparece uma notificação fixa.
  */
 class WakeWordService : Service() {
@@ -46,9 +51,26 @@ class WakeWordService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var listener: SpeechListener
     private lateinit var speaker: Speaker
-    private var detector: PorcupineManager? = null
+    private var model: Model? = null
+    private var recognizer: Recognizer? = null
+    private var detector: SpeechService? = null
     private var conversation: Job? = null
     private var pausedByApp = false
+
+    private val voskListener = object : RecognitionListener {
+        override fun onPartialResult(hypothesis: String?) = inspect(hypothesis, "partial")
+        override fun onResult(hypothesis: String?) = inspect(hypothesis, "text")
+        override fun onFinalResult(hypothesis: String?) = Unit
+        override fun onError(exception: Exception?) {
+            _error.value = "Erro no microfone: ${exception?.message}"
+        }
+        override fun onTimeout() = Unit
+
+        private fun inspect(hypothesis: String?, field: String) {
+            val text = hypothesis?.let { runCatching { JSONObject(it).optString(field) }.getOrNull() }.orEmpty()
+            if (WAKE.containsMatchIn(text)) onWakeWord()
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -68,7 +90,7 @@ class WakeWordService : Service() {
             ServiceCompat.startForeground(
                 this,
                 NOTIFICATION_ID,
-                buildNotification(),
+                buildNotification("Preparando…"),
                 // O tipo "microfone" só existe a partir do Android 11; no 10 vale o que está no manifesto.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0,
             )
@@ -78,58 +100,65 @@ class WakeWordService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
-        try {
-            startDetector()
-            _running.value = true
-            _error.value = null
-        } catch (e: PorcupineException) {
-            _error.value = "Erro na palavra de ativação: ${e.message}"
-            stopSelf()
-        }
+        if (detector == null) scope.launch { prepareAndListen() }
         // Se o Android matar o serviço, não tentamos voltar sozinhos (não dá pra abrir o microfone em segundo plano).
         return START_NOT_STICKY
+    }
+
+    private suspend fun prepareAndListen() {
+        _error.value = null
+        try {
+            if (!VoskModel.isReady(this)) {
+                _status.value = "Baixando o reconhecimento de voz (31 MB, só na primeira vez)…"
+            }
+            val dir = VoskModel.ensure(this) { percent ->
+                scope.launch {
+                    _status.value = "Baixando o reconhecimento de voz: $percent%"
+                    updateNotification("Baixando reconhecimento de voz: $percent%")
+                }
+            }
+            _status.value = "Carregando…"
+            model = withContext(Dispatchers.IO) { Model(dir.path) }
+            startDetector()
+            _status.value = null
+            _running.value = true
+            updateNotification("Diga “IANA” e faça seu pedido.")
+        } catch (e: IOException) {
+            _status.value = null
+            _error.value = "Não consegui baixar o reconhecimento de voz. Confira a internet e tente de novo."
+            stopSelf()
+        }
     }
 
     override fun onDestroy() {
         instance = null
         scope.cancel()
-        releaseDetector()
+        detector?.shutdown()
+        recognizer?.close()
+        model?.close()
         speaker.shutdown()
         _running.value = false
+        _status.value = null
         super.onDestroy()
     }
 
     private fun startDetector() {
-        val current = detector ?: PorcupineManager.Builder()
-            .setAccessKey(BuildConfig.PICOVOICE_ACCESS_KEY)
-            .setKeywordPath(KEYWORD_ASSET)
-            .setModelPath(MODEL_ASSET)
-            .setSensitivity(SENSITIVITY)
-            .setErrorCallback { e -> scope.launch { _error.value = "Erro no microfone: ${e.message}" } }
-            .build(applicationContext) { scope.launch { onWakeWord() } }
-            .also { detector = it }
-        current.start()
+        val m = model ?: return
+        val rec = recognizer ?: Recognizer(m, SAMPLE_RATE, GRAMMAR).also { recognizer = it }
+        rec.reset()
+        val service = detector ?: SpeechService(rec, SAMPLE_RATE).also { detector = it }
+        service.startListening(voskListener)
     }
 
+    /** Solta o microfone (o reconhecimento do pedido e o Vosk não podem gravar ao mesmo tempo). */
     private fun stopDetector() {
-        try {
-            detector?.stop()
-        } catch (e: PorcupineException) {
-            // Já estava parado.
-        }
-    }
-
-    private fun releaseDetector() {
-        stopDetector()
-        detector?.delete()
-        detector = null
+        detector?.stop()
     }
 
     private fun onWakeWord() {
         if (conversation?.isActive == true || pausedByApp) return
+        stopDetector()
         conversation = scope.launch {
-            // O Porcupine e o reconhecimento de voz não podem usar o microfone ao mesmo tempo.
-            stopDetector()
             try {
                 beep()
                 delay(250) // não deixa o bip entrar na gravação
@@ -145,7 +174,7 @@ class WakeWordService : Service() {
                     if (reply.changedCalendar) WidgetUpdateWorker.refreshNow(applicationContext)
                 }
             } finally {
-                if (!pausedByApp) runCatching { detector?.start() }
+                if (!pausedByApp) runCatching { startDetector() }
             }
         }
     }
@@ -159,7 +188,11 @@ class WakeWordService : Service() {
         }
     }
 
-    private fun buildNotification(): Notification {
+    private fun updateNotification(text: String) {
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, buildNotification(text))
+    }
+
+    private fun buildNotification(text: String): Notification {
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Palavra de ativação", NotificationManager.IMPORTANCE_LOW).apply {
@@ -175,17 +208,24 @@ class WakeWordService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("IANA está ouvindo")
-            .setContentText("Diga “IANA” e faça seu pedido.")
+            .setContentText(text)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(openApp)
             .addAction(R.drawable.ic_stop, "Desligar", stop)
             .build()
     }
 
     companion object {
-        const val KEYWORD_ASSET = "iana_pt_android.ppn"
-        const val MODEL_ASSET = "porcupine_params_pt.pv"
-        private const val SENSITIVITY = 0.6f
+        private const val SAMPLE_RATE = 16_000f
+
+        /**
+         * Palavras que o Vosk procura. "[unk]" absorve todo o resto. Incluímos grafias parecidas
+         * porque o modelo pode não conhecer "iana"; palavras que ele não conhece são ignoradas.
+         */
+        private const val GRAMMAR = """["iana", "yana", "ana", "[unk]"]"""
+        private val WAKE = Regex("""\b(iana|yana|ana)\b""")
+
         private const val ACTION_STOP = "com.davipeter.iana.STOP_WAKE_WORD"
         private const val CHANNEL_ID = "wake_word"
         private const val NOTIFICATION_ID = 1
@@ -196,17 +236,11 @@ class WakeWordService : Service() {
         private val _error = MutableStateFlow<String?>(null)
         val error: StateFlow<String?> = _error.asStateFlow()
 
-        private var instance: WakeWordService? = null
+        /** Mensagem de preparo (download do modelo etc.), ou nulo. */
+        private val _status = MutableStateFlow<String?>(null)
+        val status: StateFlow<String?> = _status.asStateFlow()
 
-        /** O que falta configurar, ou nulo se está tudo pronto. */
-        fun missingSetup(context: Context): String? {
-            if (BuildConfig.PICOVOICE_ACCESS_KEY.isBlank()) {
-                return "Falta a AccessKey do Picovoice em local.properties (veja o README)."
-            }
-            val assets = context.assets.list("").orEmpty()
-            if (KEYWORD_ASSET !in assets) return "Falta o arquivo $KEYWORD_ASSET em app/src/main/assets (veja o README)."
-            return null
-        }
+        private var instance: WakeWordService? = null
 
         fun start(context: Context) {
             _error.value = null
@@ -217,7 +251,7 @@ class WakeWordService : Service() {
             context.stopService(Intent(context, WakeWordService::class.java))
         }
 
-        /** O app vai usar o microfone (botão de falar): solta o microfone do Porcupine. Chamar na main thread. */
+        /** O app vai usar o microfone (botão de falar): solta o microfone do Vosk. Chamar na main thread. */
         fun pauseForApp() {
             instance?.apply {
                 pausedByApp = true
@@ -230,7 +264,7 @@ class WakeWordService : Service() {
         fun resumeAfterApp() {
             instance?.apply {
                 pausedByApp = false
-                runCatching { detector?.start() }
+                runCatching { startDetector() }
             }
         }
     }
