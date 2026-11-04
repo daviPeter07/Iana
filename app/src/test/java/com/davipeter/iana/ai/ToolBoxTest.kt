@@ -50,13 +50,8 @@ class ToolBoxTest {
 
     @Test
     fun `ferramenta desconhecida nao executa nada`() {
-        try {
-            run("apagar_tudo", "{}")
-        } catch (e: IllegalStateException) {
-            assertTrue(calendar.created.isEmpty())
-            return
-        }
-        throw AssertionError("devia ter falhado")
+        assertTrue(error("apagar_tudo", "{}").startsWith("Ferramenta desconhecida"))
+        assertTrue(calendar.created.isEmpty())
     }
 
     @Test
@@ -91,7 +86,8 @@ class ToolBoxTest {
         assertFalse(action.isNew)
         assertEquals(listOf("Tecnologia", "tecnologia"), action.report.newsTopics)
         assertEquals(
-            "Vou alterar o relatório Editado, nos fins de semana às 8h, com notícias sobre Tecnologia, tecnologia. Confirma?",
+            "Vou alterar o relatório R1, que passa a se chamar Editado, nos fins de semana às 8h, " +
+                "com notícias sobre Tecnologia, tecnologia. Confirma?",
             box.describe(action, now.toLocalDate()),
         )
     }

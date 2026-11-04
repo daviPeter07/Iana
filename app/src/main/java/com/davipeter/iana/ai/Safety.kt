@@ -31,10 +31,11 @@ object Sanitize {
 enum class Answer { YES, NO, OTHER }
 
 object Confirmation {
+    // Só formas explícitas. "ok", "claro", "certo" e "pode" sozinhos aparecem demais em conversa
+    // de fundo e na TV, e a rodada de confirmação da palavra "IANA" não sabe quem está falando.
     private val YES = setOf(
-        "sim", "pode", "pode sim", "confirma", "confirmo", "confirmado", "isso", "isso mesmo", "ok", "okay",
-        "beleza", "pode ser", "manda ver", "claro", "certo", "fechado", "sim pode", "sim confirma", "pode marcar",
-        "pode criar", "pode apagar", "sim por favor", "por favor",
+        "sim", "sim pode", "sim confirma", "sim confirmo", "sim por favor", "pode sim", "confirma", "confirmo",
+        "confirmado", "isso mesmo", "pode marcar", "pode criar", "pode apagar", "pode salvar", "pode alterar",
     )
     private val NO = Regex("""\b(nao|cancela|cancelar|cancele|deixa|esquece|esqueca|pare|negativo|melhor nao)\b""")
     // "para" fica de fora de propósito: em português também é preposição ("para amanhã").

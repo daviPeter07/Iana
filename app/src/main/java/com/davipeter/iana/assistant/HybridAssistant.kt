@@ -2,6 +2,7 @@ package com.davipeter.iana.assistant
 
 import com.davipeter.iana.ai.AiAgent
 import com.davipeter.iana.ai.LlmException
+import kotlinx.coroutines.CancellationException
 
 /** Quem responde aos pedidos (o app e o serviço da palavra "IANA" só conhecem isto). */
 fun interface Responder {
@@ -25,15 +26,21 @@ class HybridAssistant(
     override suspend fun handle(text: String): Reply {
         val reply = if (!aiEnabled()) rules.handle(text) else try {
             ai.handle(text)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: LlmException) {
             fallback(text, e.kind)
+        } catch (e: Exception) {
+            // Qualquer outro erro (bug, provedor de agenda instável...) não pode derrubar o app
+            // nem o serviço da palavra "IANA".
+            fallback(text, LlmException.Kind.BAD_RESPONSE)
         }
         if (reply.changedReports) onReportsChanged()
         return reply
     }
 
     private suspend fun fallback(text: String, kind: LlmException.Kind): Reply {
-        val basic = rules.handle(text)
+        val basic = rules.handle(text, allowChanges = false)
         val warning = when (kind) {
             LlmException.Kind.AUTH -> "A chave da IA foi recusada. Confira nas configurações."
             LlmException.Kind.NO_CREDIT -> "A conta da IA está sem crédito."

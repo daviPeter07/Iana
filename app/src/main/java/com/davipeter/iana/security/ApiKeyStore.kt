@@ -2,9 +2,12 @@ package com.davipeter.iana.security
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import java.security.KeyStore
+import java.security.UnrecoverableKeyException
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -33,12 +36,22 @@ class ApiKeyStore(context: Context) {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, secretKey(), GCMParameterSpec(TAG_BITS, Base64.decode(iv, Base64.NO_WRAP)))
             String(cipher.doFinal(Base64.decode(data, Base64.NO_WRAP)), Charsets.UTF_8)
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            forget()
+        } catch (e: UnrecoverableKeyException) {
+            forget()
+        } catch (e: AEADBadTagException) {
+            forget()
         } catch (e: Exception) {
-            // Chave do Keystore apagada/invalidada (ex.: troca de bloqueio de tela em alguns aparelhos).
-            // Não dá para recuperar: limpa e o app pede a chave de novo.
-            clear()
+            // Erro passageiro do Keystore: não apaga a chave; tenta de novo no próximo pedido.
             null
         }
+    }
+
+    /** A chave do Keystore foi invalidada (ex.: troca de bloqueio de tela): não dá para recuperar. */
+    private fun forget(): String? {
+        clear()
+        return null
     }
 
     fun set(apiKey: String) {

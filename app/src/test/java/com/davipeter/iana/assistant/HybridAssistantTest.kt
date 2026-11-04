@@ -87,6 +87,25 @@ class HybridAssistantTest {
     }
 
     @Test
+    fun `se a ia falha o modo basico nao cria evento sem confirmacao`() = runBlocking {
+        val reply = hybrid(failing(LlmException.Kind.NETWORK)).handle("marca dentista amanhã às 10h")
+        assertTrue(calendar.created.isEmpty())
+        assertTrue(reply.speech.contains("não consigo marcar"))
+    }
+
+    @Test
+    fun `ia desligada por escolha mantem o comportamento antigo`() = runBlocking {
+        hybrid(ScriptedLlm(), enabled = false).handle("marca dentista amanhã às 10h")
+        assertEquals(1, calendar.created.size)
+    }
+
+    @Test
+    fun `erro inesperado nao derruba o app`() = runBlocking {
+        val reply = hybrid(LlmClient { throw IllegalStateException("bug") }).handle("que horas são?")
+        assertEquals("Agora são 10h.", reply.speech)
+    }
+
+    @Test
     fun `resposta da ia passa direto`() = runBlocking {
         assertEquals("Oi, Davi!", hybrid(ScriptedLlm(text("Oi, Davi!"))).handle("oi").speech)
     }

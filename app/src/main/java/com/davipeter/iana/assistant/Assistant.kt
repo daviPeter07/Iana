@@ -42,9 +42,18 @@ class Assistant(
     private val clock: () -> LocalDateTime = LocalDateTime::now,
 ) : Responder {
 
-    override suspend fun handle(text: String): Reply {
+    override suspend fun handle(text: String): Reply = handle(text, allowChanges = true)
+
+    /**
+     * @param allowChanges falso quando a IA está ligada mas falhou: aí as regras não criam nada,
+     * porque esse caminho não tem a pergunta "Confirma?" (e a palavra "IANA" acorda com barulho).
+     */
+    suspend fun handle(text: String, allowChanges: Boolean): Reply {
         val now = clock()
         val command = brain.interpret(text, now)
+        if (!allowChanges && command is Command.CreateEvent) {
+            return Reply("Agora não consigo marcar compromissos com segurança, porque a IA está indisponível. Tente de novo daqui a pouco.")
+        }
         return try {
             execute(command, now)
         } catch (e: SecurityException) {

@@ -2,6 +2,7 @@ package com.davipeter.iana.security
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.os.PowerManager
 import com.davipeter.iana.ai.CounterStore
 import java.time.LocalDate
 
@@ -32,9 +33,19 @@ class IanaSettings(context: Context) {
     }
 }
 
-/** O celular está bloqueado agora? (tela travada com PIN, padrão ou biometria) */
+/**
+ * O celular está bloqueado agora?
+ *
+ * Tela apagada conta como bloqueado. O `isDeviceLocked` sozinho dá falso nos segundos de carência
+ * depois de apagar a tela, com Smart Lock, ou em celular sem bloqueio de tela, e a palavra "IANA"
+ * funciona com a tela apagada.
+ */
 class DeviceLock(context: Context) {
     private val keyguard = context.getSystemService(KeyguardManager::class.java)
+    private val power = context.getSystemService(PowerManager::class.java)
 
-    fun isLocked(): Boolean = keyguard?.isDeviceLocked ?: false
+    fun isLocked(): Boolean = (keyguard?.isDeviceLocked ?: false) || !(power?.isInteractive ?: true)
+
+    /** O celular tem PIN, padrão, senha ou biometria. Sem isso, "bloqueado" não protege nada. */
+    fun isSecure(): Boolean = keyguard?.isDeviceSecure ?: false
 }

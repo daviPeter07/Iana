@@ -2,6 +2,7 @@ package com.davipeter.iana.ai
 
 import com.davipeter.iana.assistant.LockPolicy
 import com.davipeter.iana.assistant.Permission
+import com.davipeter.iana.data.calendar.CalendarEvent
 import com.davipeter.iana.data.news.Headline
 import com.davipeter.iana.reports.InMemoryReportStore
 import com.davipeter.iana.reports.ReportComposer
@@ -214,6 +215,39 @@ class AiAgentTest {
     }
 
     @Test
+    fun `ferramenta inventada vira erro para o modelo e nao derruba nada`() = runBlocking {
+        val llm = ScriptedLlm(tool("apagar_tudo"), text("Não sei fazer isso."))
+        assertEquals("Não sei fazer isso.", agent(llm).handle("apaga tudo").speech)
+        val result = llm.requests[1].messages.last().content.single() as Block.ToolResult
+        assertTrue(result.isError)
+        assertTrue(result.content.startsWith("Ferramenta desconhecida"))
+    }
+
+    @Test
+    fun `celular bloqueado apaga o historico para ninguem ouvir a agenda de novo`() = runBlocking {
+        val llm = ScriptedLlm().apply { fallback = text("Você tem dentista às 15h.") }
+        val ai = agent(llm)
+        ai.handle("minha agenda")
+        locked = true
+        ai.handle("o que você acabou de dizer?")
+        assertEquals(1, llm.requests.last().messages.size)
+        assertFalse(llm.requests.last().allText().contains("dentista"))
+    }
+
+    @Test
+    fun `agenda lotada e cortada no resultado da ferramenta`() = runBlocking {
+        calendar.events = (0 until 50).map {
+            CalendarEvent("Spam $it", now.plusMinutes(it.toLong()), now.plusMinutes(it + 1L), false, null)
+        }
+        val llm = ScriptedLlm(tool("ler_agenda", """{"data_inicio":"2026-11-01","dias":1}"""), text("ok"))
+        agent(llm).handle("agenda")
+        val content = llm.requests[1].allText()
+        assertTrue(content.contains("Spam 29"))
+        assertFalse(content.contains("Spam 30"))
+        assertTrue(content.contains("\"eventos_omitidos\":20"))
+    }
+
+    @Test
     fun `entrada gigante e cortada`() = runBlocking {
         val llm = ScriptedLlm(text("ok"))
         agent(llm).handle("a".repeat(5000))
@@ -240,7 +274,7 @@ class AiAgentTest {
             ask.speech,
         )
         assertTrue(reports.list().isEmpty())
-        val done = ai.handle("pode")
+        val done = ai.handle("pode criar")
         assertTrue(done.changedReports)
         assertEquals("abc123", reports.list().single().id)
         assertNull(done.needs)

@@ -49,7 +49,7 @@ class AppContainer(app: Application) {
 
     val apiKeys = ApiKeyStore(app)
     val settings = IanaSettings(app)
-    private val deviceLock = DeviceLock(app)
+    val deviceLock = DeviceLock(app)
     val lock = LockPolicy(isLocked = deviceLock::isLocked, personalDataWhenLocked = { settings.personalDataWhenLocked })
 
     val reports = PrefsReportStore(app)

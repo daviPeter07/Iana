@@ -10,7 +10,7 @@ class SafetyTest {
 
     @Test
     fun `sim curto confirma`() {
-        listOf("sim", "Sim!", "pode", "Confirma.", "IANA, sim", "ok", "pode marcar", "isso mesmo").forEach {
+        listOf("sim", "Sim!", "pode sim", "Confirma.", "IANA, sim", "confirmo", "pode marcar", "isso mesmo").forEach {
             assertEquals(it, Answer.YES, Confirmation.parse(it))
         }
     }
@@ -24,7 +24,8 @@ class SafetyTest {
 
     @Test
     fun `frase longa ou com condicao nao conta como sim`() {
-        listOf("sim, mas muda pra 16h", "pode marcar para amanhã", "simulação", "", "talvez").forEach {
+        // Palavras soltas comuns em conversa de fundo/TV não confirmam nada.
+        listOf("sim, mas muda pra 16h", "pode marcar para amanhã", "simulação", "", "talvez", "ok", "claro", "pode", "certo").forEach {
             assertEquals(it, Answer.OTHER, Confirmation.parse(it))
         }
     }

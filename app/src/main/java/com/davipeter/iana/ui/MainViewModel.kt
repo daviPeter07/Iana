@@ -49,6 +49,8 @@ data class AiState(
     val personalWhenLocked: Boolean = false,
     val usedToday: Int = 0,
     val keyError: String? = null,
+    /** O celular tem PIN/padrão/biometria; sem isso a proteção de tela bloqueada não vale. */
+    val deviceSecure: Boolean = true,
 ) {
     val active: Boolean get() = enabled && keyMasked != null
 }
@@ -84,6 +86,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     personalWhenLocked = container.settings.personalDataWhenLocked,
                     usedToday = container.usage.usedToday(),
                     keyError = keyError,
+                    deviceSecure = container.deviceLock.isSecure(),
                 ),
             )
         }
@@ -224,7 +227,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun respond(text: String) {
         _state.update { it.copy(phase = Phase.Thinking, partial = text, error = null) }
-        val reply = assistant.handle(text)
+        val reply = try {
+            assistant.handle(text)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Reply("Tive um problema agora. Tente de novo.")
+        }
         _state.update {
             it.copy(
                 phase = Phase.Speaking,

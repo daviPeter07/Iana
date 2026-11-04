@@ -23,9 +23,10 @@ import java.time.format.DateTimeFormatter
  *   chamar uma ferramenta, mas não consegue dizer "sim" por você.
  * - **Uma alteração por vez**, e a pergunta expira em [pendingTtl].
  * - **Laço limitado**: no máximo [maxSteps] idas ao modelo por pedido, e o [UsageGuard] por dia.
- * - **Memória curta e limpa**: guarda só as últimas [maxTurns] trocas, em texto, por [historyTtl].
- *   Resultados de ferramentas (manchetes, eventos) não ficam no histórico, então um texto injetado
- *   não "gruda" nas próximas conversas. Nada disso vai para o disco.
+ * - **Memória curta**: guarda só as últimas [maxTurns] trocas, em texto, por [historyTtl], e nada
+ *   vai para o disco. Resultados brutos de ferramentas (manchetes, eventos) não ficam no histórico;
+ *   só as falas da IANA. Com o celular bloqueado (e agenda bloqueada) o histórico é apagado, para
+ *   ninguém perguntar "o que você disse da minha agenda?" e ouvir a resposta antiga.
  * - **Entrada limitada** a [maxInputChars] caracteres.
  */
 class AiAgent(
@@ -47,6 +48,7 @@ class AiAgent(
     private val mutex = Mutex()
     private val history = ArrayDeque<Turn>()
     private var lastActivity: LocalDateTime? = null
+    @Volatile
     private var pending: Pending? = null
 
     /** Existe uma pergunta "Confirma?" esperando resposta. */
@@ -65,6 +67,7 @@ class AiAgent(
     suspend fun handle(text: String): Reply = mutex.withLock {
         val now = clock()
         expire(now)
+        if (!tools.canReadPersonal()) history.clear()
         lastActivity = now
         val input = text.trim().take(maxInputChars)
         if (input.isEmpty()) return@withLock Reply("Não ouvi nada. Pode repetir?")
@@ -139,15 +142,17 @@ class AiAgent(
     private suspend fun confirm(p: Pending, input: String, now: LocalDateTime): Reply {
         // Com a tela travada a ação continua pendente: desbloqueie e diga "sim" de novo.
         if (!tools.canChange()) return Reply(LockPolicy.LOCKED_CHANGE)
+        // Tira a ação da fila ANTES de executar: se o pedido for cancelado no meio (você tocou em
+        // parar), um segundo "sim" não grava o evento duas vezes.
+        pending = null
         val done = try {
             tools.execute(p.action, now.toLocalDate())
         } catch (e: SecurityException) {
+            pending = p // depois de dar a permissão, o "sim" repetido continua valendo
             return Reply("Preciso de permissão para acessar sua agenda.", needs = Permission.CALENDAR)
         } catch (e: NoWritableCalendarException) {
-            pending = null
             return Reply("Não encontrei nenhuma agenda no celular em que eu possa gravar. Adicione uma conta Google ao aparelho.")
         }
-        pending = null
         return remember(
             input,
             Reply(done.speech, done.details, changedCalendar = done.changedCalendar, changedReports = done.changedReports),

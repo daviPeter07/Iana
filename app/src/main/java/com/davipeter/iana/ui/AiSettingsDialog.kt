@@ -125,6 +125,14 @@ fun AiSettingsDialog(
                     onChange = onTogglePersonalWhenLocked,
                 )
 
+                if (!ai.deviceSecure) {
+                    Text(
+                        "Este celular não tem bloqueio de tela (PIN, padrão ou digital). Sem ele, a proteção de " +
+                            "\"celular bloqueado\" não funciona: qualquer pessoa perto pode pedir alterações.",
+                        color = Iana.Erro,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 Text(
                     "Com a IA ligada, o que você fala e, quando preciso, sua agenda e as manchetes vão para a API " +
                         "da Anthropic para montar a resposta. A chave fica cifrada no celular (Android Keystore). " +
