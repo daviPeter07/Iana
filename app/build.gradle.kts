@@ -76,6 +76,8 @@ dependencies {
     // Voz da IANA (sherpa-onnx) e o descompactador do modelo (.tar.bz2).
     implementation(files(sherpaAar))
     implementation(libs.commons.compress)
+    // JSON da API do Claude (só a API de JsonElement, sem o plugin de serialização).
+    implementation(libs.kotlinx.serialization.json)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

@@ -20,12 +20,14 @@ data class Detail(val text: String, val note: String? = null)
  * @param details linhas extras mostradas na tela (manchetes com a fonte, eventos...).
  * @param needs permissão que faltou; a tela pede e repete o comando.
  * @param changedCalendar o comando criou um evento (o widget precisa ser atualizado).
+ * @param changedReports algum relatório automático foi criado, alterado ou apagado (reagendar).
  */
 data class Reply(
     val speech: String,
     val details: List<Detail> = emptyList(),
     val needs: Permission? = null,
     val changedCalendar: Boolean = false,
+    val changedReports: Boolean = false,
 )
 
 /**
@@ -36,10 +38,11 @@ class Assistant(
     private val brain: Brain,
     private val news: NewsSource,
     private val calendar: CalendarSource,
+    private val lock: LockPolicy = LockPolicy.OPEN,
     private val clock: () -> LocalDateTime = LocalDateTime::now,
-) {
+) : Responder {
 
-    suspend fun handle(text: String): Reply {
+    override suspend fun handle(text: String): Reply {
         val now = clock()
         val command = brain.interpret(text, now)
         return try {
@@ -57,9 +60,9 @@ class Assistant(
         val today = now.toLocalDate()
         return when (command) {
             is Command.News -> news(command.topic)
-            is Command.Agenda -> agenda(command, today)
-            Command.NextEvent -> nextEvent(now)
-            is Command.CreateEvent -> create(command, today)
+            is Command.Agenda -> if (lock.canReadPersonal()) agenda(command, today) else Reply(LockPolicy.LOCKED_READ)
+            Command.NextEvent -> if (lock.canReadPersonal()) nextEvent(now) else Reply(LockPolicy.LOCKED_READ)
+            is Command.CreateEvent -> if (lock.canChange()) create(command, today) else Reply(LockPolicy.LOCKED_CHANGE)
             is Command.CreateEventMissingDate -> Reply(
                 "Para quando é ${command.title}? Diga, por exemplo: marca ${command.title.lowercase()} amanhã às 15h.",
             )

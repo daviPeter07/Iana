@@ -161,9 +161,17 @@ class WakeWordService : Service() {
             try {
                 beep()
                 delay(250) // não deixa o bip entrar na gravação
-                val heard = runCatching { listener.listen() }.getOrDefault("")
-                if (heard.isNotBlank()) {
-                    val reply = (application as IanaApp).container.assistant.handle(heard)
+                val container = (application as IanaApp).container
+                // Uma rodada extra só para responder a um "Confirma?" sem precisar dizer "IANA" de novo.
+                repeat(2) { round ->
+                    if (round == 1) {
+                        if (!container.aiAgent.hasPending) return@repeat
+                        beep()
+                        delay(250)
+                    }
+                    val heard = runCatching { listener.listen() }.getOrDefault("")
+                    if (heard.isBlank()) return@launch
+                    val reply = container.assistant.handle(heard)
                     val speech = if (reply.needs != null) {
                         "Abra o aplicativo para me dar permissão de agenda."
                     } else {

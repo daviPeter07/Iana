@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.davipeter.iana.IanaApp
+import com.davipeter.iana.ai.ApiKeyFormat
 import com.davipeter.iana.assistant.Permission
 import com.davipeter.iana.assistant.Reply
 import com.davipeter.iana.voice.SpeechException
@@ -36,11 +37,26 @@ data class UiState(
     val voiceReady: Boolean = false,
     /** Progresso do download da voz (0..100), ou nulo se não está baixando. */
     val voiceDownload: Int? = null,
+    val ai: AiState = AiState(),
+    /** Um relatório foi criado: a tela pede a permissão de notificação (Android 13+). */
+    val askNotifications: Boolean = false,
 )
+
+/** O que a tela mostra sobre a IA. A chave em si nunca chega aqui, só a versão mascarada. */
+data class AiState(
+    val keyMasked: String? = null,
+    val enabled: Boolean = true,
+    val personalWhenLocked: Boolean = false,
+    val usedToday: Int = 0,
+    val keyError: String? = null,
+) {
+    val active: Boolean get() = enabled && keyMasked != null
+}
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val assistant = (app as IanaApp).container.assistant
+    private val container = (app as IanaApp).container
+    private val assistant = container.assistant
     private val listener = SpeechListener(app)
     private val speaker = Speaker(app)
 
@@ -53,6 +69,56 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         _state.update { it.copy(voiceReady = speaker.hasIanaVoice) }
+        refreshAi()
+    }
+
+    // ---------- IA ----------
+
+    fun refreshAi(keyError: String? = null) {
+        val masked = container.apiKeys.get()?.let(ApiKeyFormat::masked)
+        _state.update {
+            it.copy(
+                ai = AiState(
+                    keyMasked = masked,
+                    enabled = container.settings.aiEnabled,
+                    personalWhenLocked = container.settings.personalDataWhenLocked,
+                    usedToday = container.usage.usedToday(),
+                    keyError = keyError,
+                ),
+            )
+        }
+    }
+
+    /** Salva a chave cifrada. Recusa o que claramente não é uma chave da Anthropic. */
+    fun saveApiKey(raw: String) {
+        val key = ApiKeyFormat.normalize(raw)
+        if (!ApiKeyFormat.isPlausible(key)) {
+            refreshAi(keyError = "Isso não parece uma chave da API (começa com sk-ant-).")
+            return
+        }
+        container.apiKeys.set(key)
+        refreshAi()
+    }
+
+    fun removeApiKey() {
+        container.apiKeys.clear()
+        viewModelScope.launch { container.aiAgent.forget() }
+        refreshAi()
+    }
+
+    fun setAiEnabled(enabled: Boolean) {
+        container.settings.aiEnabled = enabled
+        if (!enabled) viewModelScope.launch { container.aiAgent.forget() }
+        refreshAi()
+    }
+
+    fun setPersonalWhenLocked(allowed: Boolean) {
+        container.settings.personalDataWhenLocked = allowed
+        refreshAi()
+    }
+
+    fun consumeAskNotifications() {
+        _state.update { it.copy(askNotifications = false) }
     }
 
     /** Baixa a voz da IANA dentro do app, mostrando o progresso. */
@@ -165,6 +231,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 partial = "",
                 history = it.history + Exchange(nextId++, text, reply),
                 waitingPermission = reply.needs?.let { p -> p to text },
+                askNotifications = it.askNotifications || reply.changedReports,
+                ai = it.ai.copy(usedToday = container.usage.usedToday()),
             )
         }
         val spoke = speaker.speak(reply.speech)
