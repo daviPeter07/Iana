@@ -71,6 +71,9 @@ import java.time.LocalDateTime
 /** Atalhos mostrados antes do primeiro pedido. Tocar = pedir. */
 private val SHORTCUTS = listOf("Notícias", "Minha agenda de hoje", "Próximo compromisso", "Que horas são?")
 
+/** Só faz sentido com a IA ligada (no modo básico "cria…" viraria um evento na agenda). */
+private val AI_SHORTCUTS = listOf("O que tenho amanhã à tarde?", "Cria um resumo toda manhã às 7h com agenda e notícias")
+
 @Composable
 fun HomeScreen(viewModel: MainViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -95,6 +98,19 @@ fun HomeScreen(viewModel: MainViewModel) {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
             PackageManager.PERMISSION_GRANTED
         if (granted) viewModel.onMicTapped() else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+    // Criou um relatório: ele chega como notificação, então pede a permissão (Android 13+).
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(state.askNotifications) {
+        if (state.askNotifications) {
+            viewModel.consumeAskNotifications()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
     // Aberto pelo botão de microfone do widget.
@@ -171,7 +187,11 @@ fun HomeScreen(viewModel: MainViewModel) {
 
             // Os atalhos voltam sempre que ela termina de responder.
             if (state.phase == Phase.Idle) {
-                Shortcuts(onPick = viewModel::onTyped, modifier = Modifier.padding(top = if (shown == Shown.Idle) 0.dp else 20.dp))
+                Shortcuts(
+                    items = if (state.ai.active) SHORTCUTS.take(2) + AI_SHORTCUTS else SHORTCUTS,
+                    onPick = viewModel::onTyped,
+                    modifier = Modifier.padding(top = if (shown == Shown.Idle) 0.dp else 20.dp),
+                )
             }
 
             var choosingVoice by rememberSaveable { mutableStateOf(false) }
@@ -185,6 +205,22 @@ fun HomeScreen(viewModel: MainViewModel) {
                         viewModel.chooseVoice(it)
                     },
                     onDismiss = { choosingVoice = false },
+                )
+            }
+
+            var configuringAi by rememberSaveable { mutableStateOf(false) }
+            AiChip(state.ai, onClick = {
+                viewModel.refreshAi()
+                configuringAi = true
+            })
+            if (configuringAi) {
+                AiSettingsDialog(
+                    ai = state.ai,
+                    onSaveKey = viewModel::saveApiKey,
+                    onRemoveKey = viewModel::removeApiKey,
+                    onToggleAi = viewModel::setAiEnabled,
+                    onTogglePersonalWhenLocked = viewModel::setPersonalWhenLocked,
+                    onDismiss = { configuringAi = false },
                 )
             }
             Spacer(Modifier.height(24.dp))
@@ -363,13 +399,13 @@ private fun Answer(reply: Reply) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Shortcuts(onPick: (String) -> Unit, modifier: Modifier = Modifier) {
+private fun Shortcuts(items: List<String>, onPick: (String) -> Unit, modifier: Modifier = Modifier) {
     FlowRow(
         modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        SHORTCUTS.forEach { text ->
+        items.forEach { text ->
             Text(
                 text,
                 style = MaterialTheme.typography.labelLarge,

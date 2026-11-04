@@ -16,6 +16,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import com.davipeter.iana.IanaApp
+import com.davipeter.iana.ai.Answer
+import com.davipeter.iana.ai.Confirmation
+import com.davipeter.iana.assistant.Reply
+import kotlinx.coroutines.CancellationException
 import com.davipeter.iana.R
 import com.davipeter.iana.ui.MainActivity
 import com.davipeter.iana.voice.SpeechListener
@@ -161,9 +165,26 @@ class WakeWordService : Service() {
             try {
                 beep()
                 delay(250) // não deixa o bip entrar na gravação
-                val heard = runCatching { listener.listen() }.getOrDefault("")
-                if (heard.isNotBlank()) {
-                    val reply = (application as IanaApp).container.assistant.handle(heard)
+                val container = (application as IanaApp).container
+                // Uma rodada extra só para responder a um "Confirma?" sem precisar dizer "IANA" de novo.
+                repeat(2) { round ->
+                    if (round == 1) {
+                        if (!container.aiAgent.hasPending) return@repeat
+                        beep()
+                        delay(250)
+                    }
+                    val heard = runCatching { listener.listen() }.getOrDefault("")
+                    if (heard.isBlank()) return@launch
+                    // Na rodada sem a palavra "IANA" só vale sim/não: qualquer outra coisa é ignorada,
+                    // para uma frase solta da TV não virar um comando completo.
+                    if (round == 1 && Confirmation.parse(heard) == Answer.OTHER) return@launch
+                    val reply = try {
+                        container.assistant.handle(heard)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Reply("Tive um problema agora. Tente de novo.")
+                    }
                     val speech = if (reply.needs != null) {
                         "Abra o aplicativo para me dar permissão de agenda."
                     } else {

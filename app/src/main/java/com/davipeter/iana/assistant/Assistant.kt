@@ -20,12 +20,14 @@ data class Detail(val text: String, val note: String? = null)
  * @param details linhas extras mostradas na tela (manchetes com a fonte, eventos...).
  * @param needs permissão que faltou; a tela pede e repete o comando.
  * @param changedCalendar o comando criou um evento (o widget precisa ser atualizado).
+ * @param changedReports algum relatório automático foi criado, alterado ou apagado (reagendar).
  */
 data class Reply(
     val speech: String,
     val details: List<Detail> = emptyList(),
     val needs: Permission? = null,
     val changedCalendar: Boolean = false,
+    val changedReports: Boolean = false,
 )
 
 /**
@@ -36,12 +38,22 @@ class Assistant(
     private val brain: Brain,
     private val news: NewsSource,
     private val calendar: CalendarSource,
+    private val lock: LockPolicy = LockPolicy.OPEN,
     private val clock: () -> LocalDateTime = LocalDateTime::now,
-) {
+) : Responder {
 
-    suspend fun handle(text: String): Reply {
+    override suspend fun handle(text: String): Reply = handle(text, allowChanges = true)
+
+    /**
+     * @param allowChanges falso quando a IA está ligada mas falhou: aí as regras não criam nada,
+     * porque esse caminho não tem a pergunta "Confirma?" (e a palavra "IANA" acorda com barulho).
+     */
+    suspend fun handle(text: String, allowChanges: Boolean): Reply {
         val now = clock()
         val command = brain.interpret(text, now)
+        if (!allowChanges && command is Command.CreateEvent) {
+            return Reply("Agora não consigo marcar compromissos com segurança, porque a IA está indisponível. Tente de novo daqui a pouco.")
+        }
         return try {
             execute(command, now)
         } catch (e: SecurityException) {
@@ -57,9 +69,9 @@ class Assistant(
         val today = now.toLocalDate()
         return when (command) {
             is Command.News -> news(command.topic)
-            is Command.Agenda -> agenda(command, today)
-            Command.NextEvent -> nextEvent(now)
-            is Command.CreateEvent -> create(command, today)
+            is Command.Agenda -> if (lock.canReadPersonal()) agenda(command, today) else Reply(LockPolicy.LOCKED_READ)
+            Command.NextEvent -> if (lock.canReadPersonal()) nextEvent(now) else Reply(LockPolicy.LOCKED_READ)
+            is Command.CreateEvent -> if (lock.canChange()) create(command, today) else Reply(LockPolicy.LOCKED_CHANGE)
             is Command.CreateEventMissingDate -> Reply(
                 "Para quando é ${command.title}? Diga, por exemplo: marca ${command.title.lowercase()} amanhã às 15h.",
             )
